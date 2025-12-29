@@ -44,7 +44,7 @@ export class CameraController {
         const zDist = CONFIG.cam.dist + (dist * 0.5); // Dynamic Zoom
         const goal = new THREE.Vector3(mid.x, CONFIG.cam.height + (dist * 0.1), mid.z + zDist);
 
-        this.camera.position.lerp(goal, dt * 2);
+        this.camera.position.lerp(goal, dt * 5); // Increased lerp speed for better tracking
         this.camera.lookAt(target);
     }
 

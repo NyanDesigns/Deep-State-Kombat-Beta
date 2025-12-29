@@ -22,11 +22,11 @@ export class Fighter {
         scene.add(this.mesh);
         this.mesh.position.copy(pos);
 
-        // Normalize Scale with character-specific override
+        // Normalize Scale
         const box = new THREE.Box3().setFromObject(this.mesh);
         const h = box.max.y - box.min.y;
-        const targetHeight = 1.7; // Default target height
-        const scale = characterConfig?.scale || (targetHeight / h);
+        const targetHeight = this.characterConfig?.scale || 1.7;
+        const scale = targetHeight / (h || 1);
         this.mesh.scale.setScalar(scale);
         box.setFromObject(this.mesh);
         const size = box.getSize(new THREE.Vector3());
@@ -414,8 +414,8 @@ export class Fighter {
     updateInput(dt, keys, camera) {
         if (keys['ArrowUp']) { this.attack('light'); return; }
         if (keys['ArrowDown']) { this.attack('heavy'); return; }
-        if (keys['w']) { this.jump(); return; }
-        if (keys['s']) { this.crouch(); return; }
+        if (keys[' ']) { this.jump(); return; }
+        if (keys['Control']) { this.crouch(); return; }
 
         // Calculate camera-relative movement vectors
         const cameraForward = new THREE.Vector3();
@@ -438,12 +438,14 @@ export class Fighter {
 
         // Create movement vector relative to camera view
         let mov = new THREE.Vector3();
-        if (keys['a']) mov.addScaledVector(cameraRight, -1);  // Side-step left
-        if (keys['d']) mov.addScaledVector(cameraRight, 1);   // Side-step right
+        if (keys['a']) mov.addScaledVector(cameraRight, -1);
+        if (keys['d']) mov.addScaledVector(cameraRight, 1);
+        if (keys['w']) mov.addScaledVector(cameraForward, 1);
+        if (keys['s']) mov.addScaledVector(cameraForward, -1);
 
         if (mov.lengthSq() > 0) {
             const movDir = mov.clone().normalize();
-            mov.multiplyScalar(this.moveSpeed * dt);
+            mov.normalize().multiplyScalar(this.moveSpeed * dt);
 
             // Determine if moving forward or backward relative to character facing
             // Dot product: positive = forward, negative = backward

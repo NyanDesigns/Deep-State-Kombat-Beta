@@ -5,7 +5,8 @@
     display: flex;
     justify-content: center;
     align-items: center;
-    margin-top: 0;
+    margin: 0;
+    width: auto;
     z-index: 10;
     position: fixed;
     top: 50%; /* Start in center */
@@ -52,15 +53,15 @@
         opacity: 1;
         transform: translateX(-50%) scale(1);
         top: auto;
-        bottom: 30px;
+        bottom: 100px;
     }
 }
 
 #character-grid {
     display: flex;
     flex-direction: column;
-    gap: 20px;
-    padding: 30px;
+    gap: 30px;
+    padding: 50px;
     /* Transparent background with subtle digital grid */
     background: 
         repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.03) 0px, rgba(255, 255, 255, 0.03) 1px, transparent 1px, transparent 20px),
@@ -80,13 +81,20 @@
     box-shadow: 
         0 0 0 2px rgba(255, 165, 0, 0.2),
         inset 0 0 60px rgba(0, 0, 0, 0.8);
-    width: 720px;
-    min-width: 720px;
-    height: 575px;
-    min-height: 575px;
+    width: 820px;
+    min-width: 820px;
+    height: auto;
+    min-height: auto;
     box-sizing: border-box;
     opacity: 1;
-    transition: opacity 0.3s ease;
+    /* Remove transition during animation - will be handled by parent container */
+    transition: none;
+    overflow: visible;
+    /* Remove margin auto to prevent alignment issues - parent handles positioning */
+    margin: 0;
+    align-items: center;
+    /* Ensure child moves with parent transform */
+    transform: none;
 }
 
 /* L-Shaped HUD Brackets for the Grid Container */
@@ -139,11 +147,12 @@
     border-left: 8px solid #ffa500;
 }
 
-#character-grid:empty {
+/* Opacity handled by parent container during animation */
+#character-grid-container.pop-visible #character-grid:empty {
     opacity: 0;
 }
 
-#character-grid:not(:empty) {
+#character-grid-container.pop-visible #character-grid:not(:empty) {
     opacity: 1;
 }
 
@@ -151,7 +160,11 @@
 .character-grid-row {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 20px;
+    gap: 35px;
+    overflow: visible;
+    justify-items: center;
+    align-items: center;
+    width: 100%;
 }
 
 /* Character Card with PNG Background and 3D Canvas */
@@ -168,9 +181,10 @@
     width: 200px;
     height: 240px;
     position: relative;
-    overflow: hidden;
+    overflow: visible;
     user-select: none;
     -webkit-user-select: none;
+    box-sizing: border-box;
 }
 
 /* Loading Skeleton */
@@ -319,7 +333,7 @@
 /* Base Card Tweaks for New Aesthetic */
 .character-card {
     background: rgba(20, 20, 25, 0.8);
-    border: 2px solid rgba(255, 255, 255, 0.1);
+    border: 3px solid rgba(255, 255, 255, 0.1);
     box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
     clip-path: polygon(
         0 10px, 10px 0, 
@@ -327,6 +341,9 @@
         100% calc(100% - 10px), calc(100% - 10px) 100%, 
         10px 100%, 0 calc(100% - 10px)
     );
+    box-sizing: border-box;
+    overflow: hidden;
+    isolation: isolate;
 }
 
 .character-card:hover {
@@ -340,13 +357,26 @@
 /* Thick P1 Focus Ring (Cyber Blue) */
 .character-card.focused-p1,
 .character-card.focused-p1:hover {
-    border: 6px solid #00ccff;
+    border: 3px solid #00ccff;
     box-shadow: 
         0 0 25px rgba(0, 204, 255, 0.6),
         inset 0 0 40px rgba(0, 204, 255, 0.3);
     z-index: 10;
     transform: translateY(-8px) scale(1.08);
     animation: digital-pulse-blue 2s infinite ease-in-out;
+    clip-path: none;
+}
+
+.character-card.focused-p1::after {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    right: -3px;
+    bottom: -3px;
+    border: 3px solid #00ccff;
+    pointer-events: none;
+    z-index: 20;
 }
 
 /* Layered bracket effect for P1 */
@@ -366,13 +396,26 @@
 /* Thick P2 Focus Ring (Cyber Orange) */
 .character-card.focused-p2,
 .character-card.focused-p2:hover {
-    border: 6px solid #ff6600;
+    border: 3px solid #ff6600;
     box-shadow: 
         0 0 25px rgba(255, 102, 0, 0.6),
         inset 0 0 40px rgba(255, 102, 0, 0.3);
     z-index: 10;
     transform: translateY(-8px) scale(1.08);
     animation: digital-pulse-orange 2s infinite ease-in-out;
+    clip-path: none;
+}
+
+.character-card.focused-p2::after {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    right: -3px;
+    bottom: -3px;
+    border: 3px solid #ff6600;
+    pointer-events: none;
+    z-index: 20;
 }
 
 /* Layered bracket effect for P2 */
@@ -392,24 +435,84 @@
 /* Purple focus when both players are focused on the same card */
 .character-card.focused-both,
 .character-card.focused-both:hover {
-    border: 8px double #9966ff !important;
+    border: 3px solid #9966ff !important;
     box-shadow: 
         0 0 40px rgba(153, 102, 255, 0.8),
         inset 0 0 60px rgba(153, 102, 255, 0.4) !important;
     z-index: 12;
     transform: translateY(-10px) scale(1.12);
     animation: digital-glitch 0.5s infinite steps(2);
+    clip-path: none;
+}
+
+.character-card.focused-both::after {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    right: -3px;
+    bottom: -3px;
+    border: 3px solid #9966ff;
+    pointer-events: none;
+    z-index: 20;
+    animation: digital-glitch-border 0.5s infinite steps(2);
+}
+
+@keyframes digital-glitch-border {
+    0% { border-color: #9966ff; }
+    25% { border-color: #00ccff; }
+    50% { border-color: #ff6600; }
+    75% { border-color: #9966ff; }
+    100% { border-color: #9966ff; }
 }
 
 /* Animations for Digital HUD effects */
 @keyframes digital-pulse-blue {
-    0%, 100% { border-color: #00ccff; box-shadow: 0 0 25px rgba(0, 204, 255, 0.6), inset 0 0 40px rgba(0, 204, 255, 0.3); }
-    50% { border-color: #55eeff; box-shadow: 0 0 45px rgba(0, 204, 255, 0.9), inset 0 0 60px rgba(0, 204, 255, 0.5); }
+    0%, 100% { 
+        border-color: #00ccff; 
+        box-shadow: 
+            0 0 25px rgba(0, 204, 255, 0.6), 
+            inset 0 0 40px rgba(0, 204, 255, 0.3); 
+    }
+    50% { 
+        border-color: #55eeff; 
+        box-shadow: 
+            0 0 45px rgba(0, 204, 255, 0.9), 
+            inset 0 0 60px rgba(0, 204, 255, 0.5); 
+    }
+}
+
+.character-card.focused-p1::after {
+    animation: digital-pulse-blue-border 2s infinite ease-in-out;
+}
+
+@keyframes digital-pulse-blue-border {
+    0%, 100% { border-color: #00ccff; }
+    50% { border-color: #55eeff; }
 }
 
 @keyframes digital-pulse-orange {
-    0%, 100% { border-color: #ff6600; box-shadow: 0 0 25px rgba(255, 102, 0, 0.6), inset 0 0 40px rgba(255, 102, 0, 0.3); }
-    50% { border-color: #ff9933; box-shadow: 0 0 45px rgba(255, 102, 0, 0.9), inset 0 0 60px rgba(255, 102, 0, 0.5); }
+    0%, 100% { 
+        border-color: #ff6600; 
+        box-shadow: 
+            0 0 25px rgba(255, 102, 0, 0.6), 
+            inset 0 0 40px rgba(255, 102, 0, 0.3); 
+    }
+    50% { 
+        border-color: #ff9933; 
+        box-shadow: 
+            0 0 45px rgba(255, 102, 0, 0.9), 
+            inset 0 0 60px rgba(255, 102, 0, 0.5); 
+    }
+}
+
+.character-card.focused-p2::after {
+    animation: digital-pulse-orange-border 2s infinite ease-in-out;
+}
+
+@keyframes digital-pulse-orange-border {
+    0%, 100% { border-color: #ff6600; }
+    50% { border-color: #ff9933; }
 }
 
 @keyframes corner-flow {
@@ -425,26 +528,84 @@
 }
 
 @keyframes digital-glitch {
-    0% { border-color: #9966ff; filter: hue-rotate(0deg) skew(0deg); }
-    25% { border-color: #00ccff; filter: hue-rotate(90deg) skew(1deg); }
-    50% { border-color: #ff6600; filter: hue-rotate(180deg) skew(-1deg); }
-    75% { border-color: #9966ff; filter: hue-rotate(270deg) skew(0.5deg); }
-    100% { border-color: #9966ff; filter: hue-rotate(360deg) skew(0deg); }
+    0% { 
+        border-color: #9966ff; 
+        box-shadow: 
+            0 0 40px rgba(153, 102, 255, 0.8),
+            inset 0 0 60px rgba(153, 102, 255, 0.4);
+        filter: hue-rotate(0deg) skew(0deg); 
+    }
+    25% { 
+        border-color: #00ccff; 
+        box-shadow: 
+            0 0 40px rgba(0, 204, 255, 0.8),
+            inset 0 0 60px rgba(0, 204, 255, 0.4);
+        filter: hue-rotate(90deg) skew(1deg); 
+    }
+    50% { 
+        border-color: #ff6600; 
+        box-shadow: 
+            0 0 40px rgba(255, 102, 0, 0.8),
+            inset 0 0 60px rgba(255, 102, 0, 0.4);
+        filter: hue-rotate(180deg) skew(-1deg); 
+    }
+    75% { 
+        border-color: #9966ff; 
+        box-shadow: 
+            0 0 40px rgba(153, 102, 255, 0.8),
+            inset 0 0 60px rgba(153, 102, 255, 0.4);
+        filter: hue-rotate(270deg) skew(0.5deg); 
+    }
+    100% { 
+        border-color: #9966ff; 
+        box-shadow: 
+            0 0 40px rgba(153, 102, 255, 0.8),
+            inset 0 0 60px rgba(153, 102, 255, 0.4);
+        filter: hue-rotate(360deg) skew(0deg); 
+    }
 }
 
 /* Selection States - Still sharp and thick */
 .character-card.selected-p1 {
-    border: 8px solid #00ff00;
-    box-shadow: 0 0 50px rgba(0, 255, 0, 0.8),
-                inset 0 0 30px rgba(0, 255, 0, 0.4);
+    border: 3px solid #00ff00;
+    box-shadow: 
+        0 0 50px rgba(0, 255, 0, 0.8),
+        inset 0 0 30px rgba(0, 255, 0, 0.4);
     animation: pulse-green-digital 1.5s infinite steps(4);
+    clip-path: none;
+}
+
+.character-card.selected-p1::after {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    right: -3px;
+    bottom: -3px;
+    border: 3px solid #00ff00;
+    pointer-events: none;
+    z-index: 20;
 }
 
 .character-card.selected-p2 {
-    border: 8px solid #ff0000;
-    box-shadow: 0 0 50px rgba(255, 0, 0, 0.8),
-                inset 0 0 30px rgba(255, 0, 0, 0.4);
+    border: 3px solid #ff0000;
+    box-shadow: 
+        0 0 50px rgba(255, 0, 0, 0.8),
+        inset 0 0 30px rgba(255, 0, 0, 0.4);
     animation: pulse-red-digital 1.5s infinite steps(4);
+    clip-path: none;
+}
+
+.character-card.selected-p2::after {
+    content: '';
+    position: absolute;
+    top: -3px;
+    left: -3px;
+    right: -3px;
+    bottom: -3px;
+    border: 3px solid #ff0000;
+    pointer-events: none;
+    z-index: 20;
 }
 
 @keyframes pulse-green-digital {
@@ -514,12 +675,16 @@
     }
 
     #character-grid {
-        padding: 25px;
-        gap: 18px;
+        padding: 40px;
+        gap: 30px;
+        width: 750px;
+        min-width: 750px;
+        height: auto;
+        min-height: auto;
     }
 
     .character-grid-row {
-        gap: 18px;
+        gap: 30px;
     }
 }
 
@@ -530,12 +695,16 @@
     }
 
     #character-grid {
-        padding: 20px;
-        gap: 15px;
+        padding: 35px;
+        gap: 25px;
+        width: 680px;
+        min-width: 680px;
+        height: auto;
+        min-height: auto;
     }
 
     .character-grid-row {
-        gap: 15px;
+        gap: 25px;
     }
 
     .character-card .character-name {
@@ -550,12 +719,16 @@
     }
 
     #character-grid {
-        padding: 15px;
-        gap: 12px;
+        padding: 25px;
+        gap: 20px;
+        width: 580px;
+        min-width: 580px;
+        height: auto;
+        min-height: auto;
     }
 
     .character-grid-row {
-        gap: 12px;
+        gap: 20px;
     }
 
     .character-card .character-name {
@@ -568,3 +741,4 @@
         font-size: 3em;
     }
 }
+

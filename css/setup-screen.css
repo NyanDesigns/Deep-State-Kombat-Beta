@@ -55,7 +55,7 @@
     visibility: hidden;
 }
 
-/* P1 PNG on left side - separated further from center */
+/* P1 PNG on left side - closer to center */
 .p1-png {
     left: -100%; /* Start off-screen to the left */
     transform: translateY(-50%);
@@ -63,7 +63,7 @@
     transition: none; /* Remove transition, use animation instead */
 }
 
-/* P2 PNG on right side, mirrored - separated further from center */
+/* P2 PNG on right side, mirrored - closer to center */
 .p2-png {
     right: -100%; /* Start off-screen to the right */
     transform: translateY(-50%) scaleX(-1);
@@ -86,7 +86,7 @@
         transform: translateY(-50%);
     }
     100% {
-        left: -40%;
+        left: -30%;
         opacity: 1;
         transform: translateY(-50%);
     }
@@ -107,7 +107,7 @@
         transform: translateY(-50%) scaleX(-1);
     }
     100% {
-        right: -40%;
+        right: -30%;
         opacity: 1;
         transform: translateY(-50%) scaleX(-1);
     }
@@ -116,7 +116,7 @@
 /* Selected state: stop animation, keep at max size, add drop shadow and glow, move down */
 .p1-png.selected {
     animation: none !important; /* Override slide-in and breathe animations */
-    left: -40% !important; /* Ensure final position */
+    left: -30% !important; /* Ensure final position */
     transform: translateY(-45%) scale(1.15);
     filter: drop-shadow(-6px 6px 0px #000)
             drop-shadow(-7px 7px 0px #000)
@@ -129,7 +129,7 @@
 
 .p2-png.selected {
     animation: none !important; /* Override slide-in and breathe animations */
-    right: -40% !important; /* Ensure final position */
+    right: -30% !important; /* Ensure final position */
     transform: translateY(-45%) scaleX(-1) scale(1.15);
     filter: drop-shadow(-6px 6px 0px #000)
             drop-shadow(-7px 7px 0px #000)
@@ -265,7 +265,7 @@
 /* Character Info Panel (Bottom Left) - HUD Redesign */
 #character-info-panel {
     position: fixed;
-    bottom: calc(30px + 80px + 60px);
+    bottom: calc(80px + 80px + 60px);
     left: 50px;
     z-index: 15;
     /* Transparent digital HUD background */
@@ -460,7 +460,7 @@
     visibility: visible;
 }
 
-/* Press P2 Start (Top Right) */
+/* CPU Player Indicator (Top Right) */
 #press-start-text {
     position: fixed;
     top: 30px;
@@ -553,7 +553,7 @@
         opacity: 1;
         transform: translate(-50%, 0) scale(0.75); /* 6em / 8em = 0.75 */
         font-size: 6em;
-        top: 40px;
+        top: 80px;
     }
 }
 
@@ -649,7 +649,7 @@
     text-align: center;
     z-index: 10;
     position: fixed;
-    bottom: calc(30px + 560px + 35px);
+    bottom: calc(80px + 650px + 20px);
     left: 50%;
     transform: translateX(-50%) translateY(-80px) scale(0); /* Start above and scaled down */
     /* Initially hidden during loading */
@@ -1045,7 +1045,7 @@ button:hover {
             opacity: 1;
             transform: translate(-50%, 0) scale(1);
             font-size: 4.8em; /* 6em * 0.8 - bigger final size */
-            top: 30px;
+            top: 70px;
         }
     }
     
@@ -1181,7 +1181,7 @@ button:hover {
             opacity: 1;
             transform: translate(-50%, 0) scale(1);
             font-size: 4.2em; /* 6em * 0.7 - bigger final size */
-            top: 25px;
+            top: 65px;
         }
     }
     
@@ -1296,7 +1296,7 @@ button:hover {
             opacity: 1;
             transform: translate(-50%, 0) scale(1);
             font-size: 3em; /* 6em * 0.5 - bigger final size */
-            top: 20px;
+            top: 60px;
         }
     }
     

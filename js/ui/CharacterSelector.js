@@ -473,7 +473,8 @@ export class CharacterSelector {
 
         const icon = document.createElement('div');
         icon.className = 'random-icon';
-        icon.innerHTML = '🎲'; // Dice icon
+        // Pixelated question mark - using bold monospace for retro pixelated look
+        icon.innerHTML = '<span style="font-family: \'Courier New\', \'Courier\', monospace; font-weight: 900; letter-spacing: 0;">?</span>';
 
         const name = document.createElement('div');
         name.className = 'character-name';

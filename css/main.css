@@ -1,0 +1,151 @@
+/* Main styles - Base styles, body, layers, common utilities */
+
+body {
+    margin: 0;
+    overflow: hidden;
+    background: #050505;
+    font-family: 'Courier New', monospace;
+    color: white;
+    user-select: none;
+}
+
+/* LAYERS */
+#ui-layer {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+}
+
+#setup-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(8,8,10,0.96);
+    z-index: 50;
+    pointer-events: auto;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Ensure clickable elements can receive events */
+.clickable {
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 200 !important;
+}
+
+/* Fix for buttons that might be covered */
+button {
+    pointer-events: auto !important;
+    position: relative;
+    z-index: 200 !important;
+}
+
+/* Ensure overlays don't block clicks */
+#center-overlay * {
+    pointer-events: auto !important;
+}
+
+/* COUNTDOWN & MESSAGES */
+#center-overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    z-index: 60;
+    pointer-events: none;
+}
+
+#center-overlay > * {
+    pointer-events: auto !important;
+}
+
+.big-text {
+    font-size: 8em;
+    font-weight: 900;
+    color: #fff;
+    text-shadow: 0 0 30px rgba(255, 200, 0, 0.8);
+    text-transform: uppercase;
+    font-style: italic;
+    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes popIn {
+    from {
+        transform: scale(0);
+        opacity: 0;
+    }
+    to {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+/* DAMAGE NUMBERS */
+.dmg {
+    position: absolute;
+    font-family: 'Impact', sans-serif;
+    font-size: 3em;
+    color: #ffcc00;
+    -webkit-text-stroke: 1px black;
+    pointer-events: none;
+    animation: floatUp 0.8s forwards;
+    font-weight: bold;
+}
+
+@keyframes floatUp {
+    to {
+        transform: translateY(-80px);
+        opacity: 0;
+    }
+}
+
+/* CRT OVERLAY */
+#crt-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    z-index: 1000;
+    background:
+        /* Scanlines */
+        repeating-linear-gradient(
+            0deg,
+            rgba(0, 0, 0, 0.15) 0px,
+            rgba(0, 0, 0, 0.15) 1px,
+            transparent 1px,
+            transparent 2px
+        ),
+        /* Vignette */
+        radial-gradient(
+            ellipse at center,
+            transparent 0%,
+            rgba(0, 0, 0, 0.4) 100%
+        );
+    mix-blend-mode: overlay;
+}
+
+/* CRT Glow Effect */
+h1, h2, .big-text, .name {
+    text-shadow:
+        0 0 10px currentColor,
+        0 0 20px currentColor,
+        0 0 30px currentColor;
+}
+
+button {
+    box-shadow:
+        0 0 10px rgba(255, 204, 0, 0.5),
+        inset 0 0 10px rgba(255, 204, 0, 0.2);
+}
+

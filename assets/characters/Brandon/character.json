@@ -1,0 +1,64 @@
+{
+  "id": "brandon",
+  "name": "Brandon",
+  "modelPath": "assets/characters/Brandon/model.glb",
+  "thumbnail": "assets/characters/Brandon/thumbnail.png",
+  "stats": {
+    "hp": 120,
+    "stamina": 90,
+    "staminaRegen": 14,
+    "moveSpeed": 4.2,
+    "weight": 1.1
+  },
+  "combat": {
+    "light": {
+      "dmg": 8,
+      "cost": 12,
+      "range": 2.3,
+      "window": [0.15, 0.6]
+    },
+    "heavy": {
+      "dmg": 18,
+      "cost": 25,
+      "range": 2.9,
+      "window": [0.35, 0.85]
+    }
+  },
+  "animations": {
+    "idle": "Idle",
+    "walk": "Walk",
+    "jump": "Jump",
+    "crouch": "Crouch",
+    "atk1": "Punch",
+    "atk2": "Kick",
+    "hit": "Hit",
+    "win": "Victory",
+    "die": "Death"
+  },
+  "animationSettings": {
+    "fadeTime": 0.08,
+    "playbackSpeed": {
+      "walk": 1.1,
+      "run": 1.2
+    }
+  },
+  "hitboxes": {
+    "head": 0.45,
+    "torso": 0.65,
+    "attackHands": [0.28, 0.25, 0.28, 0.25],
+    "attackLegs": [0.32, 0.26, 0.32, 0.26]
+  },
+  "scale": 1.8,
+  "color": 6513507,
+  "ai": {
+    "aggression": 0.7,
+    "retreatDistance": 1.8,
+    "attackChance": 0.6
+  },
+  "displayInfo": {
+    "difficulty": "Intermediate",
+    "wins": 0,
+    "losses": 0
+  }
+}
+

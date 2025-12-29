@@ -1,0 +1,78 @@
+/* HUD - Health bars, stamina bars, timer */
+
+#hud {
+    display: none;
+    padding: 30px;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.bar-wrap {
+    width: 40%;
+}
+
+.name {
+    font-weight: 800;
+    font-size: 1.5em;
+    text-shadow: 2px 2px 0 #000;
+    font-style: italic;
+    margin-bottom: 5px;
+    color: #0f0;
+}
+
+.bar-wrap:last-child .name {
+    color: #f00;
+    text-align: right;
+}
+
+.hp-border {
+    width: 100%;
+    height: 25px;
+    background: #333;
+    border: 3px solid #000;
+    transform: skewX(-15deg);
+    overflow: hidden;
+    position: relative;
+}
+
+.hp-fill {
+    height: 100%;
+    width: 100%;
+    transition: width 0.2s;
+}
+
+#p1-hp {
+    background: linear-gradient(90deg, #00ff00, #008800);
+}
+
+#p2-hp {
+    background: linear-gradient(90deg, #ff3333, #880000);
+    float: right;
+}
+
+.st-border {
+    width: 70%;
+    height: 8px;
+    background: #222;
+    margin-top: 5px;
+    transform: skewX(-15deg);
+    border: 1px solid #000;
+}
+
+.bar-wrap:last-child .st-border {
+    float: right;
+}
+
+.st-fill {
+    height: 100%;
+    width: 100%;
+    background: #00ccff;
+}
+
+#timer {
+    font-size: 4em;
+    font-weight: 900;
+    text-shadow: 0 0 20px #000;
+    color: #fff;
+}
+

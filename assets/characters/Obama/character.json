@@ -1,0 +1,64 @@
+{
+  "id": "obama",
+  "name": "Obama",
+  "modelPath": "assets/characters/Obama/model.glb",
+  "thumbnail": "assets/characters/Obama/thumbnail.png",
+  "stats": {
+    "hp": 110,
+    "stamina": 100,
+    "staminaRegen": 13,
+    "moveSpeed": 4.0,
+    "jumpHeight": 2.2,
+    "weight": 1.0
+  },
+  "combat": {
+    "light": {
+      "dmg": 7,
+      "cost": 14,
+      "range": 2.2,
+      "window": [0.2, 0.5]
+    },
+    "heavy": {
+      "dmg": 16,
+      "cost": 28,
+      "range": 2.7,
+      "window": [0.4, 0.8]
+    }
+  },
+  "animations": {
+    "idle": "Idle",
+    "walk": "Walk",
+    "jump": "Jump",
+    "crouch": "Crouch",
+    "atk1": "Punch",
+    "atk2": "Kick",
+    "hit": "Hit",
+    "win": "Victory",
+    "die": "Death"
+  },
+  "animationSettings": {
+    "fadeTime": 0.1,
+    "playbackSpeed": {
+      "jump": 1.15
+    }
+  },
+  "hitboxes": {
+    "head": 0.42,
+    "torso": 0.62,
+    "attackHands": [0.26, 0.23, 0.26, 0.23],
+    "attackLegs": [0.29, 0.25, 0.29, 0.25]
+  },
+  "scale": 1.75,
+  "color": 4210752,
+  "ai": {
+    "aggression": 0.6,
+    "retreatDistance": 2.0,
+    "attackChance": 0.5
+  },
+  "displayInfo": {
+    "difficulty": "Intermediate",
+    "wins": 0,
+    "losses": 0
+  }
+}
+

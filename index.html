@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Deep Kombat</title>
+
+    <!-- CSS Files -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/setup-screen.css">
+    <link rel="stylesheet" href="css/hud.css">
+    <link rel="stylesheet" href="css/pause-menu.css">
+    <link rel="stylesheet" href="css/debug.css">
+    <link rel="stylesheet" href="css/character-select.css">
+
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <div id="setup-screen">
+        <!-- Full-screen background character previews (PNG ONLY) -->
+        <div id="background-character-preview">
+            <!-- P1 Character Preview (Left Side) -->
+            <div id="p1-background-preview" class="player-background-preview">
+                <img id="p1-background-png-image" class="background-png p1-png" src="" alt="P1 Character Preview" style="display: none;">
+            </div>
+            <!-- P2 Character Preview (Right Side) -->
+            <div id="p2-background-preview" class="player-background-preview">
+                <img id="p2-background-png-image" class="background-png p2-png" src="" alt="P2 Character Preview" style="display: none;">
+            </div>
+            <div class="background-gradient-overlay"></div>
+        </div>
+
+        <!-- Fire Particle Effect Canvas - Behind PNG (full height particles) -->
+        <canvas id="fire-particles-canvas-back"></canvas>
+        
+        <!-- Fire Particle Effect Canvas - In Front of PNG (half height particles) -->
+        <canvas id="fire-particles-canvas-front"></canvas>
+
+        <!-- Character Name Display P1 (Bottom Left) -->
+        <div class="character-name-display character-name-p1"></div>
+
+        <!-- Character Name Display P2 (Bottom Right) -->
+        <div class="character-name-display character-name-p2"></div>
+
+        <!-- Character Info Panel (Bottom Left) -->
+        <div id="character-info-panel">
+            <div class="character-info-content">
+                <div class="character-record"></div>
+                <div class="character-difficulty"></div>
+            </div>
+        </div>
+
+        <!-- Press P2 Start (Top Right Corner) -->
+        <div id="press-start-text">PRESS P2 START</div>
+
+        <!-- Main Title -->
+        <h1 class="game-title-logo">
+            <span class="title-word title-deep">DEEP STATE</span>
+            <span class="title-word title-kombat">KOMBAT</span>
+        </h1>
+
+        <!-- Choose Your Fighter Text -->
+        <div id="choose-fighter-text">Choose Your Fighter</div>
+
+        <!-- Ready Text for Selected Players -->
+        <div id="p1-ready-text" class="ready-text ready-text-p1">Ready</div>
+        <div id="p2-ready-text" class="ready-text ready-text-p2">Ready</div>
+
+        <!-- Bottom Center: 2×3 Character Grid -->
+        <div id="character-grid-container">
+            <div id="character-grid">
+                <!-- Character cards will be inserted here by CharacterSelector -->
+            </div>
+        </div>
+
+        <!-- Hidden character selection panels (for custom model loading) -->
+        <div id="character-selection" style="display: none;">
+            <div class="panel">
+                <h2>Player 1 (You)</h2>
+
+                <!-- Character Preview -->
+                <div class="preview-container">
+                    <canvas id="p1-preview" class="preview-canvas"></canvas>
+                    <div class="preview-overlay">CHARACTER PREVIEW</div>
+                    <div id="p1-loading" class="loading-overlay" style="display: none;">
+                        <div>Loading Character...</div>
+                        <div>Drop GLB/GLTF file here</div>
+                    </div>
+                    <div class="character-pose">Ready for Battle</div>
+                </div>
+
+                <!-- Character Menu -->
+                <div class="menu-section">
+                    <label>Load Model (GLB/GLTF)</label>
+                    <input type="file" id="p1-file" accept=".glb,.gltf">
+                    <div id="p1-map" style="opacity:0.3; pointer-events:none; transition:opacity 0.5s; margin-top: 15px;">
+                        <label>Idle Animation</label><select id="p1-idle"></select>
+                        <label>Walk Animation</label><select id="p1-walk"></select>
+                        <label>Jump Animation (W Key)</label><select id="p1-jump"></select>
+                        <label>Crouch Animation (S Key)</label><select id="p1-crouch"></select>
+                        <label>Light Attack (Up Arrow)</label><select id="p1-atk1"></select>
+                        <label>Heavy Attack (Down Arrow)</label><select id="p1-atk2"></select>
+                        <label>Get Hit Animation</label><select id="p1-hit"></select>
+                        <label class="optional">Win Pose (Optional)</label><select id="p1-win"></select>
+                        <label class="optional death">Death Pose (Optional)</label><select id="p1-die"></select>
+                        <button id="p1-clear">Clear Saved Settings</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>Player 2 (AI)</h2>
+
+                <!-- Character Preview -->
+                <div class="preview-container">
+                    <canvas id="p2-preview" class="preview-canvas"></canvas>
+                    <div class="preview-overlay">CHARACTER PREVIEW</div>
+                    <div id="p2-loading" class="loading-overlay" style="display: none;">
+                        <div>Loading Character...</div>
+                        <div>Drop GLB/GLTF file here</div>
+                    </div>
+                    <div class="character-pose">Ready for Battle</div>
+                </div>
+
+                <!-- Character Menu -->
+                <div class="menu-section">
+                    <label>Load Model (GLB/GLTF)</label>
+                    <input type="file" id="p2-file" accept=".glb,.gltf">
+                    <div id="p2-map" style="opacity:0.3; pointer-events:none; transition:opacity 0.5s; margin-top: 15px;">
+                        <label>Idle Animation</label><select id="p2-idle"></select>
+                        <label>Walk Animation</label><select id="p2-walk"></select>
+                        <label>Jump Animation (W Key)</label><select id="p2-jump"></select>
+                        <label>Crouch Animation (S Key)</label><select id="p2-crouch"></select>
+                        <label>Light Attack</label><select id="p2-atk1"></select>
+                        <label>Heavy Attack</label><select id="p2-atk2"></select>
+                        <label>Get Hit Animation</label><select id="p2-hit"></select>
+                        <label class="optional">Win Pose</label><select id="p2-win"></select>
+                        <label class="optional death">Death Pose</label><select id="p2-die"></select>
+                        <button id="p2-clear">Clear Saved Settings</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <button id="btn-start">ENTER ARENA</button>
+    </div>
+
+    <div id="ui-layer">
+        <div id="hud">
+            <div class="bar-wrap">
+                <div class="name">PLAYER 1</div>
+                <div class="hp-border"><div id="p1-hp" class="hp-fill"></div></div>
+                <div class="st-border"><div id="p1-st" class="st-fill"></div></div>
+            </div>
+            <div id="timer">99</div>
+            <div class="bar-wrap">
+                <div class="name">CPU</div>
+                <div class="hp-border"><div id="p2-hp" class="hp-fill"></div></div>
+                <div class="st-border"><div id="p2-st" class="st-fill"></div></div>
+            </div>
+        </div>
+        <div id="center-overlay"></div>
+        <div id="dmg-layer"></div>
+
+        <!-- Pause Menu -->
+        <div id="pause-menu">
+            <div class="pause-panel">
+                <h2>PAUSED</h2>
+
+                <div class="pause-buttons">
+                    <button id="btn-resume" class="clickable">Resume Game</button>
+                    <button id="btn-restart-pause" class="clickable">Restart Fight</button>
+                    <button id="btn-main-menu" class="clickable">Main Menu</button>
+                </div>
+
+                <div class="debug-options">
+                    <h3>Debug Options</h3>
+
+                    <label class="debug-option">
+                        <input type="checkbox" id="debug-hitboxes">
+                        <span>Show Hitboxes</span>
+                    </label>
+
+                    <label class="debug-option">
+                        <input type="checkbox" id="debug-params">
+                        <span>Show Parameters</span>
+                    </label>
+
+                    <label class="debug-option">
+                        <input type="checkbox" id="debug-range">
+                        <span>Show Attack Ranges</span>
+                    </label>
+
+                    <label class="debug-option">
+                        <input type="checkbox" id="debug-timer">
+                        <span>Show Frame Data</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+
+        <!-- Debug Info Panel -->
+        <div id="debug-panel"></div>
+    </div>
+
+    <!-- CRT Overlay -->
+    <div id="crt-overlay"></div>
+
+    <script type="module" src="js/main.js"></script>
+</body>
+</html>

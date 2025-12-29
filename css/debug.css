@@ -1,0 +1,17 @@
+/* Debug Panel - Debug panel, hitbox visualization styles */
+
+#debug-panel {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.8);
+    color: #00ff00;
+    padding: 15px;
+    font-family: monospace;
+    font-size: 12px;
+    border: 1px solid #333;
+    border-radius: 5px;
+    display: none;
+    z-index: 50;
+}
+

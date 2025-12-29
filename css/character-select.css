@@ -1,0 +1,570 @@
+/* Character Select - Tekken-Style Redesign */
+
+/* Character Grid Container */
+#character-grid-container {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin-top: 0;
+    z-index: 10;
+    position: fixed;
+    top: 50%; /* Start in center */
+    left: 50%;
+    transform: translate(-50%, -50%) scale(0); /* Start centered with scale 0 */
+    /* Initially hidden during loading */
+    opacity: 0;
+    visibility: hidden;
+    transition: none; /* Remove transition, use animation instead */
+}
+
+/* Pop-in animation for grid container - appears in center then moves down */
+#character-grid-container.pop-visible {
+    opacity: 1;
+    visibility: visible;
+    animation: gridSequence 1.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+@keyframes gridSequence {
+    /* Phase 1: Pop in at center (0-25%) */
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0);
+        top: 50%;
+    }
+    15% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1.1);
+        top: 50%;
+    }
+    25% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+        top: 50%;
+    }
+    /* Phase 2: Stay in center (25-50%) */
+    50% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+        top: 50%;
+    }
+    /* Phase 3: Move down to final position (50-100%) */
+    100% {
+        opacity: 1;
+        transform: translateX(-50%) scale(1);
+        top: auto;
+        bottom: 30px;
+    }
+}
+
+#character-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+    padding: 30px;
+    /* Transparent background with subtle digital grid */
+    background: 
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.03) 0px, rgba(255, 255, 255, 0.03) 1px, transparent 1px, transparent 20px),
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0px, rgba(255, 255, 255, 0.03) 1px, transparent 1px, transparent 20px),
+        rgba(0, 0, 0, 0.4);
+    position: relative;
+    border-radius: 0;
+    /* Main HUD Frame using multiple thick borders and notches */
+    border: 4px solid rgba(255, 165, 0, 0.4);
+    /* Clip to create tech-notched corners */
+    clip-path: polygon(
+        0 20px, 20px 0, 
+        calc(100% - 20px) 0, 100% 20px, 
+        100% calc(100% - 20px), calc(100% - 20px) 100%, 
+        20px 100%, 0 calc(100% - 20px)
+    );
+    box-shadow: 
+        0 0 0 2px rgba(255, 165, 0, 0.2),
+        inset 0 0 60px rgba(0, 0, 0, 0.8);
+    width: 720px;
+    min-width: 720px;
+    height: 575px;
+    min-height: 575px;
+    box-sizing: border-box;
+    opacity: 1;
+    transition: opacity 0.3s ease;
+}
+
+/* L-Shaped HUD Brackets for the Grid Container */
+#character-grid::before,
+#character-grid::after {
+    content: '';
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    pointer-events: none;
+    z-index: 5;
+}
+
+#character-grid::before {
+    top: -4px;
+    left: -4px;
+    border-top: 8px solid #ffa500;
+    border-left: 8px solid #ffa500;
+}
+
+#character-grid::after {
+    bottom: -4px;
+    right: -4px;
+    border-bottom: 8px solid #ffa500;
+    border-right: 8px solid #ffa500;
+}
+
+/* Inner brackets (opposite corners) */
+#character-grid-container::before,
+#character-grid-container::after {
+    content: '';
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    pointer-events: none;
+    z-index: 15;
+}
+
+#character-grid-container::before {
+    top: -10px;
+    right: -10px;
+    border-top: 8px solid #ffa500;
+    border-right: 8px solid #ffa500;
+}
+
+#character-grid-container::after {
+    bottom: -10px;
+    left: -10px;
+    border-bottom: 8px solid #ffa500;
+    border-left: 8px solid #ffa500;
+}
+
+#character-grid:empty {
+    opacity: 0;
+}
+
+#character-grid:not(:empty) {
+    opacity: 1;
+}
+
+
+.character-grid-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 20px;
+}
+
+/* Character Card with PNG Background and 3D Canvas */
+.character-card {
+    background: linear-gradient(135deg, #1a1a1a 0%, #0a0a0a 100%);
+    border: 3px solid #444;
+    border-radius: 0;
+    padding: 0;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.8),
+                inset 0 0 20px rgba(0, 0, 0, 0.5);
+    width: 200px;
+    height: 240px;
+    position: relative;
+    overflow: hidden;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Loading Skeleton */
+.character-card-skeleton {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(90deg, 
+        rgba(50, 50, 50, 0.8) 0%, 
+        rgba(80, 80, 80, 1) 50%, 
+        rgba(50, 50, 50, 0.8) 100%);
+    background-size: 200% 100%;
+    animation: skeleton-shimmer 1.5s infinite;
+    z-index: 5;
+    pointer-events: none;
+    display: block;
+    opacity: 1;
+    transition: opacity 0.4s ease;
+    border-radius: 0;
+}
+
+.character-card.loading .character-card-skeleton {
+    display: block !important;
+    opacity: 1 !important;
+    visibility: visible !important;
+}
+
+.character-card:not(.loading) .character-card-skeleton {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+}
+
+@keyframes skeleton-shimmer {
+    0% {
+        background-position: -200% 0;
+    }
+    100% {
+        background-position: 200% 0;
+    }
+}
+
+/* Hide name and stats during loading - start hidden */
+.character-card .character-name,
+.character-card .character-stats {
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.4s ease 0.1s, visibility 0.4s ease 0.1s;
+}
+
+.character-card.loading .character-name,
+.character-card.loading .character-stats {
+    opacity: 0 !important;
+    visibility: hidden !important;
+}
+
+.character-card:not(.loading) .character-name,
+.character-card:not(.loading) .character-stats {
+    opacity: 1;
+    visibility: visible;
+}
+
+/* PNG Background Image in Card */
+.character-card-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center center;
+    z-index: 1;
+    transition: opacity 0.4s ease 0.1s;
+    opacity: 0;
+}
+
+/* Zoom into face for characters without 3D models (using T.png) */
+.character-card-background.face-zoom {
+    object-fit: cover;
+    object-position: center 20%;
+    transform: scale(4.5) translateY(30%);
+    transform-origin: center center;
+}
+
+.character-card:not(.loading) .character-card-background {
+    opacity: 1;
+}
+
+.character-card.loading .character-card-background {
+    opacity: 0 !important;
+}
+
+.character-card.no-image .character-card-background {
+    display: none;
+}
+
+.character-card:hover {
+    border-color: #ff8c00;
+    box-shadow: 0 0 40px rgba(255, 140, 0, 1),
+                0 0 60px rgba(255, 69, 0, 0.8),
+                0 6px 20px rgba(0, 0, 0, 0.8),
+                inset 0 0 40px rgba(255, 100, 0, 0.3);
+    transform: translateY(-5px) scale(1.05);
+}
+
+/* Add fire glow effect to hovered card background */
+.character-card:hover .character-card-background {
+    filter: brightness(1.2) saturate(1.3);
+}
+
+/* 3D Canvas in Card (overlays PNG) */
+.character-card-canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    display: block;
+    background: transparent;
+    z-index: 2;
+}
+
+/* Character Name Overlay */
+.character-card .character-name {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.7) 70%, transparent 100%);
+    color: #fff;
+    font-size: 1.1em;
+    font-weight: bold;
+    padding: 12px 8px 8px 8px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    text-shadow: 0 0 10px #000,
+                 0 2px 4px rgba(0, 0, 0, 0.8);
+    pointer-events: none;
+    z-index: 3;
+}
+
+/* Selection & Focus States - Thick Geometric HUD Styles */
+
+/* Base Card Tweaks for New Aesthetic */
+.character-card {
+    background: rgba(20, 20, 25, 0.8);
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    box-shadow: inset 0 0 20px rgba(0, 0, 0, 0.5);
+    clip-path: polygon(
+        0 10px, 10px 0, 
+        calc(100% - 10px) 0, 100% 10px, 
+        100% calc(100% - 10px), calc(100% - 10px) 100%, 
+        10px 100%, 0 calc(100% - 10px)
+    );
+}
+
+.character-card:hover {
+    border-color: rgba(255, 165, 0, 0.5);
+    transform: translateY(-5px) scale(1.02);
+    box-shadow: 
+        0 10px 30px rgba(0, 0, 0, 0.5),
+        inset 0 0 15px rgba(255, 165, 0, 0.1);
+}
+
+/* Thick P1 Focus Ring (Cyber Blue) */
+.character-card.focused-p1,
+.character-card.focused-p1:hover {
+    border: 6px solid #00ccff;
+    box-shadow: 
+        0 0 25px rgba(0, 204, 255, 0.6),
+        inset 0 0 40px rgba(0, 204, 255, 0.3);
+    z-index: 10;
+    transform: translateY(-8px) scale(1.08);
+    animation: digital-pulse-blue 2s infinite ease-in-out;
+}
+
+/* Layered bracket effect for P1 */
+.character-card.focused-p1::before {
+    content: '';
+    position: absolute;
+    top: -12px;
+    left: -12px;
+    right: -12px;
+    bottom: -12px;
+    border: 4px solid rgba(0, 204, 255, 0.4);
+    clip-path: polygon(0 0, 30px 0, 30px 4px, 4px 4px, 4px 30px, 0 30px);
+    z-index: 11;
+    animation: corner-flow 1.5s infinite linear;
+}
+
+/* Thick P2 Focus Ring (Cyber Orange) */
+.character-card.focused-p2,
+.character-card.focused-p2:hover {
+    border: 6px solid #ff6600;
+    box-shadow: 
+        0 0 25px rgba(255, 102, 0, 0.6),
+        inset 0 0 40px rgba(255, 102, 0, 0.3);
+    z-index: 10;
+    transform: translateY(-8px) scale(1.08);
+    animation: digital-pulse-orange 2s infinite ease-in-out;
+}
+
+/* Layered bracket effect for P2 */
+.character-card.focused-p2::before {
+    content: '';
+    position: absolute;
+    top: -12px;
+    left: -12px;
+    right: -12px;
+    bottom: -12px;
+    border: 4px solid rgba(255, 102, 0, 0.4);
+    clip-path: polygon(100% 100%, calc(100% - 30px) 100%, calc(100% - 30px) calc(100% - 4px), calc(100% - 4px) calc(100% - 4px), calc(100% - 4px) calc(100% - 30px), 100% calc(100% - 30px));
+    z-index: 11;
+    animation: corner-flow-reverse 1.5s infinite linear;
+}
+
+/* Purple focus when both players are focused on the same card */
+.character-card.focused-both,
+.character-card.focused-both:hover {
+    border: 8px double #9966ff !important;
+    box-shadow: 
+        0 0 40px rgba(153, 102, 255, 0.8),
+        inset 0 0 60px rgba(153, 102, 255, 0.4) !important;
+    z-index: 12;
+    transform: translateY(-10px) scale(1.12);
+    animation: digital-glitch 0.5s infinite steps(2);
+}
+
+/* Animations for Digital HUD effects */
+@keyframes digital-pulse-blue {
+    0%, 100% { border-color: #00ccff; box-shadow: 0 0 25px rgba(0, 204, 255, 0.6), inset 0 0 40px rgba(0, 204, 255, 0.3); }
+    50% { border-color: #55eeff; box-shadow: 0 0 45px rgba(0, 204, 255, 0.9), inset 0 0 60px rgba(0, 204, 255, 0.5); }
+}
+
+@keyframes digital-pulse-orange {
+    0%, 100% { border-color: #ff6600; box-shadow: 0 0 25px rgba(255, 102, 0, 0.6), inset 0 0 40px rgba(255, 102, 0, 0.3); }
+    50% { border-color: #ff9933; box-shadow: 0 0 45px rgba(255, 102, 0, 0.9), inset 0 0 60px rgba(255, 102, 0, 0.5); }
+}
+
+@keyframes corner-flow {
+    0% { transform: translate(0, 0); opacity: 1; }
+    50% { transform: translate(5px, 5px); opacity: 0.5; }
+    100% { transform: translate(0, 0); opacity: 1; }
+}
+
+@keyframes corner-flow-reverse {
+    0% { transform: translate(0, 0); opacity: 1; }
+    50% { transform: translate(-5px, -5px); opacity: 0.5; }
+    100% { transform: translate(0, 0); opacity: 1; }
+}
+
+@keyframes digital-glitch {
+    0% { border-color: #9966ff; filter: hue-rotate(0deg) skew(0deg); }
+    25% { border-color: #00ccff; filter: hue-rotate(90deg) skew(1deg); }
+    50% { border-color: #ff6600; filter: hue-rotate(180deg) skew(-1deg); }
+    75% { border-color: #9966ff; filter: hue-rotate(270deg) skew(0.5deg); }
+    100% { border-color: #9966ff; filter: hue-rotate(360deg) skew(0deg); }
+}
+
+/* Selection States - Still sharp and thick */
+.character-card.selected-p1 {
+    border: 8px solid #00ff00;
+    box-shadow: 0 0 50px rgba(0, 255, 0, 0.8),
+                inset 0 0 30px rgba(0, 255, 0, 0.4);
+    animation: pulse-green-digital 1.5s infinite steps(4);
+}
+
+.character-card.selected-p2 {
+    border: 8px solid #ff0000;
+    box-shadow: 0 0 50px rgba(255, 0, 0, 0.8),
+                inset 0 0 30px rgba(255, 0, 0, 0.4);
+    animation: pulse-red-digital 1.5s infinite steps(4);
+}
+
+@keyframes pulse-green-digital {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(0.98); }
+}
+
+@keyframes pulse-red-digital {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.8; transform: scale(0.98); }
+}
+
+/* Special Cards (Random & Add New) */
+.random-selection-card,
+.add-new-character-card {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+}
+
+.random-selection-card .random-icon,
+.add-new-character-card .add-icon {
+    font-size: 4em;
+    color: #ffcc00;
+    text-shadow: 0 0 20px #ffcc00,
+                 0 0 40px #ffa500;
+    margin-bottom: 10px;
+}
+
+.random-selection-card:hover .random-icon,
+.add-new-character-card:hover .add-icon {
+    color: #fff;
+    text-shadow: 0 0 30px #fff,
+                 0 0 50px #ffcc00;
+}
+
+.random-selection-card .character-name,
+.add-new-character-card .character-name {
+    position: static;
+    background: none;
+    color: #ffcc00;
+    font-size: 1.2em;
+}
+
+.add-new-character-card .add-icon {
+    font-size: 5em;
+    font-weight: bold;
+}
+
+.character-stats {
+    font-size: 0.9em;
+    color: #aaa;
+    margin-top: 5px;
+}
+
+.character-stats .stat {
+    margin: 3px 0;
+}
+
+/* Responsive layout */
+@media (max-width: 1200px) {
+    .character-card {
+        width: 180px;
+        height: 220px;
+    }
+
+    #character-grid {
+        padding: 25px;
+        gap: 18px;
+    }
+
+    .character-grid-row {
+        gap: 18px;
+    }
+}
+
+@media (max-width: 850px) {
+    .character-card {
+        width: 160px;
+        height: 200px;
+    }
+
+    #character-grid {
+        padding: 20px;
+        gap: 15px;
+    }
+
+    .character-grid-row {
+        gap: 15px;
+    }
+
+    .character-card .character-name {
+        font-size: 0.95em;
+    }
+}
+
+@media (max-width: 600px) {
+    .character-card {
+        width: 140px;
+        height: 180px;
+    }
+
+    #character-grid {
+        padding: 15px;
+        gap: 12px;
+    }
+
+    .character-grid-row {
+        gap: 12px;
+    }
+
+    .character-card .character-name {
+        font-size: 0.85em;
+        padding: 8px 4px 4px 4px;
+    }
+
+    .random-selection-card .random-icon,
+    .add-new-character-card .add-icon {
+        font-size: 3em;
+    }
+}

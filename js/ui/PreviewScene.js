@@ -1,9 +1,11 @@
 import * as THREE from 'three';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 
 // Placeholder for PreviewScene - will be enhanced with character system integration
 export class PreviewScene {
-    constructor(sceneManager) {
+    constructor(sceneManager, renderSystem) {
         this.sceneManager = sceneManager;
+        this.renderSystem = renderSystem; // Master render system for unified pixelation
         this.previewScenes = {};
         this.miniScenes = {}; // For grid cell mini-scenes
         this.backgroundScene = null; // For large background preview
@@ -34,16 +36,8 @@ export class PreviewScene {
             const previewCamera = new THREE.PerspectiveCamera(50, aspect, 0.1, 100);
             previewCamera.position.set(0, 1, 3);
 
-            // Create preview renderer
-            const previewRenderer = new THREE.WebGLRenderer({
-                canvas: canvas,
-                antialias: true,
-                alpha: true,
-                powerPreference: "low-power"
-            });
-            previewRenderer.setSize(canvas.width, canvas.height);
-            previewRenderer.shadowMap.enabled = true;
-            previewRenderer.shadowMap.type = THREE.PCFSoftShadowMap;
+            // No longer create individual renderer - use master RenderSystem
+            // The renderSystem will handle rendering through the unified pixelation pipeline
 
             // Add lighting to preview
             const previewAmb = new THREE.HemisphereLight(0x404040, 0x202020, 0.8);
@@ -62,11 +56,11 @@ export class PreviewScene {
             ground.position.y = -1;
             previewScene.add(ground);
 
-            // Store preview data
+            // Store preview data (no renderer - use master renderSystem)
             this.previewScenes[id] = {
                 scene: previewScene,
                 camera: previewCamera,
-                renderer: previewRenderer,
+                canvas: canvas,
                 mixer: null,
                 model: null,
                 clock: new THREE.Clock()
@@ -98,15 +92,7 @@ export class PreviewScene {
         camera.position.set(-2, 2, 5);
         camera.lookAt(0, 1, 0);
 
-        // Create renderer
-        const renderer = new THREE.WebGLRenderer({
-            canvas: canvas,
-            antialias: true,
-            alpha: true
-        });
-        renderer.setSize(canvas.width, canvas.height);
-        renderer.shadowMap.enabled = true;
-        renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+        // No longer create individual renderer - use master RenderSystem
 
         // Add dramatic lighting
         const ambLight = new THREE.AmbientLight(0x404040, 0.5);
@@ -121,11 +107,11 @@ export class PreviewScene {
         rimLight.position.set(-3, 3, -2);
         scene.add(rimLight);
 
-        // Store background scene data
+        // Store background scene data (no renderer - use master renderSystem)
         this.backgroundScene = {
             scene: scene,
             camera: camera,
-            renderer: renderer,
+            canvas: canvas,
             mixer: null,
             model: null,
             clock: new THREE.Clock()
@@ -192,28 +178,20 @@ export class PreviewScene {
         const scene = new THREE.Scene();
         scene.background = new THREE.Color(0x1a1a1a); // Slightly lighter for better visibility
 
-        // Create camera - portrait framing for grid cells (closer, higher, tighter)
+        // Create camera - portrait framing for grid cells
+        // Camera moved DOWN in world coordinates (Y position decreased) to look UP at face
         const aspect = width / height;
         const camera = new THREE.PerspectiveCamera(36, aspect, 0.1, 50);
-        camera.position.set(0, 1.6, 1.8);
-        camera.lookAt(0, 1.2, 0);
+        camera.position.set(0, 1.2, 1.8);  // Moved camera DOWN in Y coordinate (from 3.0 to 1.2)
+        camera.lookAt(0, 2.0, 0);           // LookAt moved UP to focus on face/head area
         
         // Store camera info for debugging
-        console.log(`Camera setup for ${cellId}: position=(0, 1.6, 1.8), lookAt=(0, 1.2, 0), aspect=${aspect.toFixed(2)}`);
+        console.log(`Camera setup for ${cellId}: position=(0, 1.2, 1.8), lookAt=(0, 2.0, 0), aspect=${aspect.toFixed(2)}`);
 
-        // Create renderer
-        const renderer = new THREE.WebGLRenderer({
-            canvas: canvas,
-            antialias: true,
-            alpha: false, // Set to false so background shows properly
-            powerPreference: "low-power"
-        });
-        renderer.setSize(internalWidth, internalHeight, false); // false = don't update CSS
-        renderer.setPixelRatio(dpr); // Use device pixel ratio
-        renderer.setClearColor(0x1a1a1a, 1); // Ensure clear color matches scene background
-        renderer.shadowMap.enabled = false; // Disable shadows for performance
+        // No longer create individual renderer - use master RenderSystem
+        // The renderSystem will handle rendering through the unified pixelation pipeline
         
-        console.log(`Renderer created for ${cellId}: size=${internalWidth}x${internalHeight}, pixelRatio=${dpr}`);
+        console.log(`Mini-scene setup for ${cellId}: size=${width}x${height}, internal=${internalWidth}x${internalHeight}, dpr=${dpr}`);
 
         // Add brighter lighting for better visibility
         const ambLight = new THREE.HemisphereLight(0xffffff, 0x404040, 1.4);
@@ -228,11 +206,11 @@ export class PreviewScene {
         fillLight.position.set(0, 2, 3);
         scene.add(fillLight);
 
-        // Store mini scene data
+        // Store mini scene data (no renderer - use master renderSystem)
         const miniSceneData = {
             scene: scene,
             camera: camera,
-            renderer: renderer,
+            canvas: canvas,
             mixer: null,
             model: null,
             clock: new THREE.Clock(),
@@ -249,9 +227,8 @@ export class PreviewScene {
         testCube.name = 'test-cube';
         scene.add(testCube);
         
-        // Render initial frame to show scene background and test object
-        renderer.render(scene, camera);
-        console.log(`Initial render complete for ${cellId}`);
+        // Initial render will happen in update() loop via master renderSystem
+        console.log(`Mini-scene created for ${cellId}`);
         
         return miniSceneData;
     }
@@ -268,12 +245,15 @@ export class PreviewScene {
             this.backgroundScene.scene.remove(this.backgroundScene.model);
         }
 
-        // Clone and setup new model
-        const model = gltf.scene.clone();
+        // Use SkeletonUtils for correct skinning/animation cloning
+        const model = SkeletonUtils.clone(gltf.scene);
 
         // Scale and position model (larger for background)
+        model.updateMatrixWorld(true);
         const box = new THREE.Box3().setFromObject(model);
-        const h = box.max.y - box.min.y;
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const h = size.y || 1;
         model.scale.setScalar(2.5 / h);
         model.position.y = 0;
 
@@ -282,6 +262,7 @@ export class PreviewScene {
             if (c.isMesh) {
                 c.castShadow = true;
                 c.receiveShadow = true;
+                c.visible = true;
             }
         });
 
@@ -323,41 +304,53 @@ export class PreviewScene {
             miniScene.scene.remove(miniScene.model);
         }
 
-        // Clone and setup new model
-        const model = gltf.scene.clone();
+        // Use SkeletonUtils for correct skinning/animation cloning
+        const model = SkeletonUtils.clone(gltf.scene);
+
+        // Ensure model is visible and matrix is updated
+        model.visible = true;
+        model.updateMatrixWorld(true);
 
         // Scale and position model (compact for grid cell, portrait framing)
         const box = new THREE.Box3().setFromObject(model);
-        const h = box.max.y - box.min.y;
-        const center = box.getCenter(new THREE.Vector3());
-        
-        // Scale to fit portrait view (slightly larger for better visibility)
-        const scale = 1.4 / h;
-        model.scale.setScalar(scale);
-        
-        // Position model: center it at the camera's lookAt point (0, 1.2, 0)
-        // First, get the original bounding box center
-        // Then position so the center aligns with the lookAt point after scaling
-        
-        // Calculate where the model's center will be after scaling
-        // The center point scales with the model, so we need to account for that
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const h = size.y || 1;
         const originalCenter = box.getCenter(new THREE.Vector3());
         
-        // Position model so its center (after scaling) is at (0, 1.2, 0)
-        // Since scaling happens around the origin, we need to:
-        // 1. Move model so its center is at origin
-        // 2. Scale it
-        // 3. Move it to the target position
+        // Increasing scale significantly as requested for a "bigger model"
+        // Scale increased from 8.5 to 12.0 for even larger zoom-in on the face
+        const scale = 9.0 / h; 
+        model.scale.setScalar(scale);
+        
+        // ROOT ISSUE FIX: Use camera-relative positioning to prevent model from disappearing
+        // The camera is at (0, 1.2, 1.8) looking at (0, 2.0, 0) with 36° FOV
+        // Camera moved DOWN, model moved DOWN MORE aggressively, scale kept large
+        const cameraLookAtY = 2.0; // Camera's lookAt point (moved UP to focus on face)
+        // Position the face/neck area (approximately 80% up the model) at the camera's lookAt point
+        // Then move model DOWN much more aggressively to show face instead of feet
+        const faceRatio = 0.80; // Face is ~80% up from bottom of bounding box
+        const faceLocalY = box.min.y + (size.y * faceRatio);
+        const targetFaceY = cameraLookAtY; // Face should be at camera lookAt
+        const additionalDownOffset = -2.0; // MUCH more aggressive offset to move model DOWN (from -0.8 to -2.0)
+        const finalY = targetFaceY - (faceLocalY * scale) + additionalDownOffset;
+        
+        // Fixed Z distance - adjusted to work with larger scale
+        const finalZ = -4.0;
+        
+        console.log(`Camera-relative reposition for ${cellId} (camera DOWN, model DOWN MORE, scale LARGE):`);
+        console.log(`  Scale: ${scale.toFixed(2)}, Original height: ${h.toFixed(2)}`);
+        console.log(`  Camera lookAt Y: ${cameraLookAtY}, Target face Y: ${targetFaceY.toFixed(2)}`);
+        console.log(`  Face local Y: ${faceLocalY.toFixed(2)}, Scaled: ${(faceLocalY * scale).toFixed(2)}`);
+        console.log(`  Additional down offset: ${additionalDownOffset}, Final Y: ${finalY.toFixed(2)}, Final Z: ${finalZ.toFixed(2)}`);
+        
         model.position.set(
-            -originalCenter.x * scale,  // Center horizontally
-            1.2 - originalCenter.y * scale,  // Center vertically at camera lookAt
-            -originalCenter.z * scale   // Center depth-wise
+            -originalCenter.x * scale, // Center horizontally
+            finalY,                    // Position face relative to camera lookAt (moved DOWN aggressively)
+            finalZ                     // Fixed distance to prevent clipping
         );
         
-        // Ensure model is visible
-        model.visible = true;
-        
-        // Update matrix to get accurate bounding box
+        // Update matrix to get accurate final state
         model.updateMatrixWorld(true);
         const finalBox = new THREE.Box3().setFromObject(model);
         const finalCenter = finalBox.getCenter(new THREE.Vector3());
@@ -367,41 +360,25 @@ export class PreviewScene {
         console.log(`  Original center: (${originalCenter.x.toFixed(2)}, ${originalCenter.y.toFixed(2)}, ${originalCenter.z.toFixed(2)})`);
         console.log(`  Model position: (${model.position.x.toFixed(2)}, ${model.position.y.toFixed(2)}, ${model.position.z.toFixed(2)})`);
         console.log(`  Final center: (${finalCenter.x.toFixed(2)}, ${finalCenter.y.toFixed(2)}, ${finalCenter.z.toFixed(2)})`);
-        console.log(`  Final bounding box: min=(${finalBox.min.x.toFixed(2)}, ${finalBox.min.y.toFixed(2)}, ${finalBox.min.z.toFixed(2)}), max=(${finalBox.max.x.toFixed(2)}, ${finalBox.max.y.toFixed(2)}, ${finalBox.max.z.toFixed(2)})`);
 
-        // Ensure materials are visible and properly lit
+        // Ensure materials are visible and properly lit without overriding everything
         model.traverse(c => {
             if (c.isMesh) {
                 c.castShadow = false;
                 c.receiveShadow = false;
                 c.visible = true;
-                // Ensure material is visible and properly configured
+                
+                // If the material is missing or problematic, fix it
                 if (c.material) {
-                    if (Array.isArray(c.material)) {
-                        c.material.forEach(mat => {
-                            if (mat) {
-                                mat.needsUpdate = true;
-                                mat.visible = true;
-                                if (mat.color) mat.color.setHex(0xffffff);
-                                if (mat.emissive) mat.emissive.setHex(0x000000);
-                                mat.transparent = false;
-                                mat.opacity = 1.0;
-                            }
-                        });
-                    } else {
-                        c.material.needsUpdate = true;
-                        c.material.visible = true;
-                        if (c.material.color) c.material.color.setHex(0xffffff);
-                        if (c.material.emissive) c.material.emissive.setHex(0x000000);
-                        c.material.transparent = false;
-                        c.material.opacity = 1.0;
-                    }
-                } else {
-                    // If no material, create a basic one
-                    c.material = new THREE.MeshStandardMaterial({
-                        color: 0xffffff,
-                        roughness: 0.7,
-                        metalness: 0.3
+                    const materials = Array.isArray(c.material) ? c.material : [c.material];
+                    materials.forEach(mat => {
+                        if (mat) {
+                            mat.visible = true;
+                            mat.needsUpdate = true;
+                            // Ensure transparency doesn't hide the character
+                            if (mat.opacity < 0.1) mat.opacity = 1.0;
+                            mat.transparent = mat.opacity < 1.0;
+                        }
                     });
                 }
             }
@@ -418,9 +395,18 @@ export class PreviewScene {
                     testCube.material.dispose();
                     console.log(`Test cube removed from ${cellId}`);
                     
-                    // Re-render immediately after removing test cube
-                    if (miniScene.renderer && miniScene.scene && miniScene.camera) {
-                        miniScene.renderer.render(miniScene.scene, miniScene.camera);
+                    // Re-render immediately after removing test cube using master renderSystem
+                    if (this.renderSystem && miniScene.scene && miniScene.camera && miniScene.canvas) {
+                        const rect = miniScene.canvas.getBoundingClientRect();
+                        if (rect.width > 0 && rect.height > 0) {
+                            this.renderSystem.renderSceneToCanvas(
+                                miniScene.scene,
+                                miniScene.camera,
+                                miniScene.canvas,
+                                rect.width,
+                                rect.height
+                            );
+                        }
                     }
                 }
             }, 2000);
@@ -465,15 +451,21 @@ export class PreviewScene {
             }
         }
         
-        // Render immediately after model is loaded
-        if (miniScene.renderer && miniScene.scene && miniScene.camera) {
-            // Render multiple times to ensure it shows
-            for (let i = 0; i < 3; i++) {
-                miniScene.renderer.render(miniScene.scene, miniScene.camera);
+        // Render immediately after model is loaded using master renderSystem
+        if (this.renderSystem && miniScene.scene && miniScene.camera && miniScene.canvas) {
+            const rect = miniScene.canvas.getBoundingClientRect();
+            if (rect.width > 0 && rect.height > 0) {
+                this.renderSystem.renderSceneToCanvas(
+                    miniScene.scene,
+                    miniScene.camera,
+                    miniScene.canvas,
+                    rect.width,
+                    rect.height
+                );
+                console.log(`Rendered mini-scene ${cellId} after model load via master renderSystem`);
             }
-            console.log(`Rendered mini-scene ${cellId} after model load (3x)`);
         } else {
-            console.error(`Cannot render mini-scene ${cellId}: renderer=${!!miniScene.renderer}, scene=${!!miniScene.scene}, camera=${!!miniScene.camera}`);
+            console.error(`Cannot render mini-scene ${cellId}: renderSystem=${!!this.renderSystem}, scene=${!!miniScene.scene}, camera=${!!miniScene.camera}, canvas=${!!miniScene.canvas}`);
         }
     }
 
@@ -498,8 +490,9 @@ export class PreviewScene {
         const miniScene = this.miniScenes[cellId];
         if (miniScene) {
             this.clearMiniScene(cellId);
-            if (miniScene.renderer) {
-                miniScene.renderer.dispose();
+            // Clean up via master renderSystem if it has disposal method
+            if (this.renderSystem && miniScene.canvas && this.renderSystem.disposePreviewCanvas) {
+                this.renderSystem.disposePreviewCanvas(miniScene.canvas);
             }
             delete this.miniScenes[cellId];
         }
@@ -514,12 +507,15 @@ export class PreviewScene {
             preview.scene.remove(preview.model);
         }
 
-        // Clone and setup new model
-        const model = gltf.scene.clone();
+        // Use SkeletonUtils for correct skinning/animation cloning
+        const model = SkeletonUtils.clone(gltf.scene);
 
         // Scale and position model
+        model.updateMatrixWorld(true);
         const box = new THREE.Box3().setFromObject(model);
-        const h = box.max.y - box.min.y;
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const h = size.y || 1;
         model.scale.setScalar(1.5 / h); // Slightly larger for preview
         model.position.y = -0.5; // Ground level
 
@@ -528,6 +524,7 @@ export class PreviewScene {
             if (c.isMesh) {
                 c.castShadow = true;
                 c.receiveShadow = true;
+                c.visible = true;
                 if (!c.material.map) {
                     c.material = new THREE.MeshStandardMaterial({
                         color: id === 'p1' ? 0x44aa44 : 0xaa4444,
@@ -602,10 +599,10 @@ export class PreviewScene {
             }
 
             // Always render the scene, even if no model is loaded yet
-            if (miniScene.renderer && miniScene.scene && miniScene.camera) {
+            if (this.renderSystem && miniScene.scene && miniScene.camera && miniScene.canvas) {
                 try {
                     // Check if canvas is visible before rendering
-                    const canvas = miniScene.renderer.domElement;
+                    const canvas = miniScene.canvas;
                     const canvasStyle = window.getComputedStyle(canvas);
                     
                     // Render if canvas is visible (check both display and visibility)
@@ -621,7 +618,17 @@ export class PreviewScene {
                             miniScene.model.visible = true;
                         }
                         
-                        miniScene.renderer.render(miniScene.scene, miniScene.camera);
+                        // Get canvas dimensions
+                        const rect = canvas.getBoundingClientRect();
+                        if (rect.width > 0 && rect.height > 0) {
+                            this.renderSystem.renderSceneToCanvas(
+                                miniScene.scene,
+                                miniScene.camera,
+                                canvas,
+                                rect.width,
+                                rect.height
+                            );
+                        }
                     }
                 } catch (error) {
                     console.error(`Error rendering mini-scene ${cellId}:`, error);
@@ -641,9 +648,18 @@ export class PreviewScene {
                 }
             }
 
-            // Render preview scene
-            if (preview && preview.renderer && preview.scene && preview.camera) {
-                preview.renderer.render(preview.scene, preview.camera);
+            // Render preview scene using master renderSystem
+            if (this.renderSystem && preview && preview.scene && preview.camera && preview.canvas) {
+                const rect = preview.canvas.getBoundingClientRect();
+                if (rect.width > 0 && rect.height > 0) {
+                    this.renderSystem.renderSceneToCanvas(
+                        preview.scene,
+                        preview.camera,
+                        preview.canvas,
+                        rect.width,
+                        rect.height
+                    );
+                }
             }
         });
     }
@@ -653,30 +669,35 @@ export class PreviewScene {
         
         // Resize mini-scenes
         Object.entries(this.miniScenes).forEach(([id, miniScene]) => {
-            if (!miniScene) return;
-            const canvas = miniScene.renderer.domElement;
-            if (!canvas) return;
+            if (!miniScene || !miniScene.canvas) return;
+            const canvas = miniScene.canvas;
 
-            canvas.width = canvas.offsetWidth || 200;
-            canvas.height = canvas.offsetHeight || 200;
-            miniScene.camera.aspect = canvas.width / canvas.height;
+            const rect = canvas.getBoundingClientRect();
+            const width = rect.width || 200;
+            const height = rect.height || 200;
+            
+            miniScene.camera.aspect = width / height;
             miniScene.camera.updateProjectionMatrix();
-            miniScene.renderer.setSize(canvas.width, canvas.height);
+            
+            // Canvas size will be handled by renderSystem when rendering
         });
 
         // Resize preview scenes
         Object.entries(this.previewScenes).forEach(([id, preview]) => {
-            if (!preview) return;
+            if (!preview || !preview.canvas) return;
 
-            const canvas = document.getElementById(id + '-preview');
-            if (!canvas) return;
-
+            const canvas = preview.canvas;
             const container = canvas.parentElement;
-            canvas.width = container.clientWidth;
-            canvas.height = container.clientHeight;
-            preview.camera.aspect = canvas.width / canvas.height;
+            const width = container.clientWidth;
+            const height = container.clientHeight;
+            
+            canvas.width = width;
+            canvas.height = height;
+            
+            preview.camera.aspect = width / height;
             preview.camera.updateProjectionMatrix();
-            preview.renderer.setSize(canvas.width, canvas.height);
+            
+            // Canvas rendering will be handled by renderSystem
         });
     }
 }

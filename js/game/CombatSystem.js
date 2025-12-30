@@ -38,12 +38,16 @@ export class CombatSystem {
     }
 
     applyHitEffects(atkType) {
+        const heavyTypes = ['heavy', 'leftLeg', 'rightLeg'];
+        const isHeavy = heavyTypes.includes(atkType);
+
         // Heavy hit FX
-        if (atkType === 'heavy') {
+        if (isHeavy) {
             this.shake = 0.5;
             this.hitStop = 0.15; // Pause game for impact
         } else {
             this.shake = 0.2;
+            this.hitStop = 0;
         }
 
         if (this.onShake) {

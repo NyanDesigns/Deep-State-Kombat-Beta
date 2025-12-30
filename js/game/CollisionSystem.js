@@ -27,7 +27,9 @@ export class CollisionSystem {
 
         const overlap = minDistance - distance;
         if (overlap > 0) {
-            const correction = direction.clone().multiplyScalar(overlap * 0.5);
+            // Apply correction with stronger separation (more friction/resistance)
+            // Use 0.6 instead of 0.5 for stronger push-away effect
+            const correction = direction.clone().multiplyScalar(overlap * 0.6);
             p1.mesh.position.addScaledVector(correction, -1);
             p2.mesh.position.add(correction);
             p1.updateCollisionCapsule();
@@ -43,9 +45,12 @@ export class CollisionSystem {
     // Check if fighter can attack another (within range and facing)
     canAttack(attacker, target) {
         const distance = this.getDistance(attacker, target);
-        const lightRange = attacker.getCombatStats ? attacker.getCombatStats('light').range : CONFIG.combat.light.range;
-        const heavyRange = attacker.getCombatStats ? attacker.getCombatStats('heavy').range : CONFIG.combat.heavy.range;
-        const maxRange = Math.max(lightRange, heavyRange);
+        const attackTypes = ['leftHand', 'rightHand', 'leftLeg', 'rightLeg', 'light', 'heavy'];
+        const ranges = attackTypes
+            .map(type => attacker.getCombatStats ? attacker.getCombatStats(type) : CONFIG.combat[type])
+            .map(stats => stats?.range)
+            .filter(r => typeof r === 'number');
+        const maxRange = ranges.length ? Math.max(...ranges) : 0;
 
         if (distance > maxRange) return false;
 

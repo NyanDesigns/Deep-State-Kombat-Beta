@@ -4,18 +4,18 @@ export class BoneDiscovery {
     static discoverBones(skeleton) {
         const bones = {};
 
-        // Common bone name patterns to search for
+        // Mixamo-first bone name patterns to search for (with a few fallbacks)
         const bonePatterns = {
-            head: ['head', 'Head', 'HEAD', 'neck', 'Neck', 'NECK'],
-            spine: ['spine', 'Spine', 'SPINE', 'chest', 'Chest', 'CHEST', 'torso', 'Torso', 'TORSO', 'spine1', 'Spine1', 'spine2', 'Spine2'],
-            handLeft: ['hand_l', 'Hand_L', 'handL', 'HandL', 'leftHand', 'LeftHand', 'hand', 'Hand'],
-            handRight: ['hand_r', 'Hand_R', 'handR', 'HandR', 'rightHand', 'RightHand'],
-            footLeft: ['foot_l', 'Foot_L', 'footL', 'FootL', 'leftFoot', 'LeftFoot', 'foot', 'Foot'],
-            footRight: ['foot_r', 'Foot_R', 'footR', 'FootR', 'rightFoot', 'RightFoot'],
-            forearmLeft: ['forearm_l', 'Forearm_L', 'forearmL', 'ForearmL', 'lowerarm_l', 'Lowerarm_L', 'elbow_l', 'Elbow_L'],
-            forearmRight: ['forearm_r', 'Forearm_R', 'forearmR', 'ForearmR', 'lowerarm_r', 'Lowerarm_R', 'elbow_r', 'Elbow_R'],
-            shinLeft: ['shin_l', 'Shin_L', 'shinL', 'ShinL', 'calf_l', 'Calf_L', 'lowerleg_l', 'Lowerleg_L', 'knee_l', 'Knee_L'],
-            shinRight: ['shin_r', 'Shin_R', 'shinR', 'ShinR', 'calf_r', 'Calf_R', 'lowerleg_r', 'Lowerleg_R', 'knee_r', 'Knee_R']
+            head: ['mixamorig:head', 'head', 'neck'],
+            spine: ['mixamorig:spine2', 'mixamorig:spine1', 'mixamorig:spine', 'spine2', 'spine1', 'spine', 'chest', 'torso'],
+            handLeft: ['mixamorig:lefthand', 'lefthand', 'hand_l', 'hand.l', 'handleft'],
+            handRight: ['mixamorig:righthand', 'righthand', 'hand_r', 'hand.r', 'handright'],
+            footLeft: ['mixamorig:leftfoot', 'leftfoot', 'foot_l', 'foot.l', 'footleft'],
+            footRight: ['mixamorig:rightfoot', 'rightfoot', 'foot_r', 'foot.r', 'footright'],
+            forearmLeft: ['mixamorig:leftforearm', 'leftforearm', 'forearm_l', 'forearm.l', 'lowerarm_l', 'lowerarm.l', 'elbow_l', 'elbow.l'],
+            forearmRight: ['mixamorig:rightforearm', 'rightforearm', 'forearm_r', 'forearm.r', 'lowerarm_r', 'lowerarm.r', 'elbow_r', 'elbow.r'],
+            shinLeft: ['mixamorig:leftleg', 'leftleg', 'shin_l', 'shin.l', 'calf_l', 'lowerleg_l', 'knee_l', 'knee.l'],
+            shinRight: ['mixamorig:rightleg', 'rightleg', 'shin_r', 'shin.r', 'calf_r', 'lowerleg_r', 'knee_r', 'knee.r']
         };
 
         // Search through all bones
@@ -53,6 +53,10 @@ export class BoneDiscovery {
         const pos = new THREE.Vector3();
         if (bone && bone.getWorldPosition) {
             try {
+                // Ensure bone's world matrix is up to date
+                if (bone.matrixWorldNeedsUpdate !== undefined) {
+                    bone.updateMatrixWorld(true);
+                }
                 bone.getWorldPosition(pos);
             } catch (e) {
                 // Bone might not be ready yet

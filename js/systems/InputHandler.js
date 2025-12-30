@@ -25,6 +25,10 @@ export class InputHandler {
         window.addEventListener('keyup', (e) => {
             this.keys[e.key] = false;
         });
+
+        window.addEventListener('blur', () => {
+            this.clearKeys();
+        });
     }
 
     isKeyPressed(key) {

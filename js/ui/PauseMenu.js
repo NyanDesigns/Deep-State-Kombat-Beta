@@ -9,7 +9,8 @@ export class PauseMenu {
             collisionBox: false,
             params: false,
             range: false,
-            timer: false
+            timer: false,
+            inputs: false
         };
         this.onDebugOptionChange = null;
     }
@@ -58,7 +59,7 @@ export class PauseMenu {
     }
 
     setupDebugOptions() {
-        const debugOptions = ['hitboxes', 'collision-box', 'params', 'range', 'timer'];
+        const debugOptions = ['hitboxes', 'collision-box', 'params', 'range', 'timer', 'inputs'];
 
         debugOptions.forEach(option => {
             const checkbox = document.getElementById('debug-' + option);

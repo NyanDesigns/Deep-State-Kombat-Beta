@@ -7,6 +7,12 @@ body {
     font-family: 'Courier New', monospace;
     color: white;
     user-select: none;
+    /* Unified pixelation effect for HTML UI to match 3D rendering */
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    /* Subtle blur to match CRT shader's softening effect */
+    filter: blur(0.3px);
 }
 
 /* LAYERS */
@@ -109,7 +115,7 @@ button {
     }
 }
 
-/* CRT OVERLAY */
+/* CRT OVERLAY - Now redundant since shader handles this, but keeping for fallback */
 #crt-overlay {
     position: fixed;
     top: 0;
@@ -134,6 +140,8 @@ button {
             rgba(0, 0, 0, 0.4) 100%
         );
     mix-blend-mode: overlay;
+    /* Reduced opacity since master shader handles most effects */
+    opacity: 0.3;
 }
 
 /* CRT Glow Effect */

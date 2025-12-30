@@ -201,8 +201,9 @@ function bootstrap() {
     // Create UIStateController
     uiStateController = new UIStateController();
     
-    // Preview scene (depends on sceneManager)
-    previewScene = new PreviewScene(sceneManager);
+    // Preview scene (depends on sceneManager and renderSystem)
+    // Note: renderSystem will be created in bootstrap, so we pass it after initialization
+    previewScene = new PreviewScene(sceneManager, null); // renderSystem will be set after init
     characterSelector = new CharacterSelector(characterManager, previewScene, storageManager);
 
     // Utility systems
@@ -237,6 +238,10 @@ async function initializeSystems() {
     // Initialize core rendering systems first
     sceneManager.init();
     renderSystem.init();
+    
+    // Set renderSystem reference in previewScene now that it's initialized
+    previewScene.renderSystem = renderSystem;
+    
     arenaBuilder.buildArena();
     effectsSystem.setCamera(sceneManager.camera);
 
@@ -392,6 +397,11 @@ async function init() {
 async function startCountdown() {
     console.log('startCountdown called');
     
+    // Clear any stuck inputs before fight begins
+    if (inputHandler) {
+        inputHandler.clearKeys();
+    }
+
     // Hide setup screen using the setupScreen method (which also triggers state change)
     setupScreen.hide();
     
@@ -460,6 +470,10 @@ async function spawnFighters() {
 
 function restartFight() {
     if (fighters.length !== 2) return;
+
+    if (inputHandler) {
+        inputHandler.clearKeys();
+    }
 
     fighters[0].mesh.position.set(-3, 0, 0);
     fighters[1].mesh.position.set(3, 0, 0);
@@ -570,8 +584,8 @@ function animate() {
         const keys = inputHandler.getKeys();
         const state = gameState.getState();
 
-        fighters[0].update(dt, fighters[1], state, keys, sceneManager.camera);
-        fighters[1].update(dt, fighters[0], state, keys, sceneManager.camera);
+        fighters[0].update(dt, fighters[1], state, keys, sceneManager.camera, collisionSystem);
+        fighters[1].update(dt, fighters[0], state, keys, sceneManager.camera, collisionSystem);
 
         collisionSystem.resolveCollisions(fighters);
 

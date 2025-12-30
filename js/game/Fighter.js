@@ -3,6 +3,7 @@ import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { CONFIG } from '../config.js';
 import { BoneDiscovery } from '../utils/BoneDiscovery.js';
 import { HitboxSystem } from '../utils/HitboxSystem.js';
+import { AIController } from './AIController.js';
 
 export class Fighter {
     constructor(id, pos, isAI, gltf, scene, characterConfig = null) {
@@ -44,9 +45,10 @@ export class Fighter {
         box.setFromObject(this.mesh);
         box.getSize(size);
 
-        this.collisionRadius = Math.max(size.x, size.z) * 0.5 + 0.3;
-        if (!isFinite(this.collisionRadius) || this.collisionRadius < 0.5) {
-            this.collisionRadius = 1.2;
+        // Larger collision radius for better collision detection
+        this.collisionRadius = Math.max(size.x, size.z) * 0.35;
+        if (!isFinite(this.collisionRadius) || this.collisionRadius < 0.3) {
+            this.collisionRadius = 0.6;
         }
         this.collisionHeight = Math.max(size.y, 1.8);
 
@@ -90,23 +92,45 @@ export class Fighter {
 
         // Combat vars
         this.hitRegistered = false;
+        this.atkGroup = null; // 'hands' or 'legs' for active attack
+        this.atkLimb = null; // 'left' or 'right' for attack limb
+        this.activeAttackIndices = []; // Which attack spheres are active for current attack
+        this.jumpInvulnerabilityTimer = 0;
+        this.comboQueuedType = null;
+        this.comboWindowOpen = false;
+        this.comboCount = 0;
+        this.maxCombo = 3;
+        this.comboWindowStart = 0.35;
+        this.comboWindowEnd = 0.8;
+        this.inputLog = [];
+        // Jump cancel and invulnerability tuning
+        this.jumpCancelStart = 0.35; // Ratio into jump anim when next action can start
+        this.jumpAutoEnd = 0.8;      // Ratio to force return to idle if nothing else happens
+        this.stateTimer = 0;
+        this.prevState = this.state;
         this.stunTime = 0;
-        this.aiTimer = 0;
-        this.aiMoveDecision = 'chase'; // AI movement decision: 'chase', 'retreat', or 'attack'
         this.moveDirection = 0; // 1 = forward, -1 = backward, 0 = none
+        
+        // AI Controller (only for AI fighters)
+        this.aiController = this.isAI ? new AIController() : null;
 
-        // Hitbox system - using spheres with character-specific sizes
-        const headRadius = characterConfig?.hitboxes?.head || 0.4;
-        const torsoRadius = characterConfig?.hitboxes?.torso || 0.6;
+        // Hitbox system - using spheres with character-specific sizes (larger radii for easier hits)
+        // Smaller base hurtboxes for tighter collisions
+        const headRadius = (characterConfig?.hitboxes?.head || 0.36);
+        const torsoRadius = (characterConfig?.hitboxes?.torso || 0.5);
 
         this.hurtSpheres = {
             head: new THREE.Sphere(new THREE.Vector3(), headRadius),
             torso: new THREE.Sphere(new THREE.Vector3(), torsoRadius)
         };
+        this.baseHurtRadii = {
+            head: this.hurtSpheres.head.radius,
+            torso: this.hurtSpheres.torso.radius
+        };
 
         // Multi-sphere attack hitboxes: each hand has fist+elbow, each leg has foot+knee
-        const handSizes = characterConfig?.hitboxes?.attackHands || [0.25, 0.22, 0.25, 0.22];
-        const legSizes = characterConfig?.hitboxes?.attackLegs || [0.28, 0.24, 0.28, 0.24];
+        const handSizes = characterConfig?.hitboxes?.attackHands || [0.18, 0.15, 0.18, 0.15];
+        const legSizes = characterConfig?.hitboxes?.attackLegs || [0.2, 0.18, 0.2, 0.18];
 
         this.attackSpheres = {
             hands: [
@@ -137,13 +161,24 @@ export class Fighter {
 
     loadAnimations(clips = []) {
         this.availableClips = clips;
-        this.loadAnim('idle', THREE.LoopRepeat, false, clips);
+        this.loadAnim('idle', THREE.LoopRepeat, false, clips, ['breath', 'breathingidle', 'idle']);
         this.loadAnim('walk', THREE.LoopRepeat, false, clips);
         this.loadAnim('atk1', THREE.LoopOnce, false, clips);
         this.loadAnim('atk2', THREE.LoopOnce, false, clips);
+        // Explicit per-limb clips from the model
+        this.loadAnim('punchL', THREE.LoopOnce, false, clips, ['punchl', 'punch_l', 'punch l']);
+        this.loadAnim('punchR', THREE.LoopOnce, false, clips, ['punchr', 'punch_r', 'punch r']);
+        this.loadAnim('kickL', THREE.LoopOnce, false, clips, ['kickl', 'kick_l', 'kick l']);
+        this.loadAnim('kickR', THREE.LoopOnce, false, clips, ['kickr', 'kick_r', 'kick r']);
+        // Legacy/aliases for side-specific attacks
+        this.loadAnim('atk1_left', THREE.LoopOnce, false, clips, ['punch l', 'punch left', 'jab l', 'jab left']);
+        this.loadAnim('atk1_right', THREE.LoopOnce, false, clips, ['punch r', 'punch right', 'jab r', 'jab right']);
+        this.loadAnim('atk2_left', THREE.LoopOnce, false, clips, ['kick out', 'kick l', 'kick left', 'left kick', 'kickl']);
+        this.loadAnim('atk2_right', THREE.LoopOnce, false, clips, ['kick r', 'kick right', 'right kick', 'kickr']);
         this.loadAnim('hit', THREE.LoopOnce, false, clips);
         this.loadAnim('jump', THREE.LoopOnce, false, clips);
         this.loadAnim('crouch', THREE.LoopOnce, false, clips);
+        this.loadAnim('breath', THREE.LoopRepeat, false, clips, ['breathingidle', 'breath', 'idle']);
         this.loadAnim('win', THREE.LoopRepeat, false, clips);
         this.loadAnim('die', THREE.LoopOnce, true, clips); // Clamp at end
 
@@ -218,32 +253,14 @@ export class Fighter {
             this.hitboxVisualization.add(legHelper);
         }
 
-        // Collision box visualization (cylinder representing the collision capsule)
+        // Collision box visualization - uses the same collisionRadius as physics
         this.collisionBoxVisualization = new THREE.Group();
         scene.add(this.collisionBoxVisualization);
         this.collisionBoxVisualization.visible = false;
 
-        // Calculate visualization radius (much thinner than actual collision radius)
-        // Use the same bounding box calculation as collisionRadius but without padding and scaled down
-        const box = new THREE.Box3().setFromObject(this.mesh);
-        const size = new THREE.Vector3();
-        box.getSize(size);
-        // Use 55% of the base radius (without the +0.3 padding) to make it much thinner
-        const baseRadius = Math.max(size.x, size.z) * 0.5;
-        const visualizationRadius = baseRadius * 0.55;
-
-        // Create cylinder visualization for collision capsule
-        const collisionMaterial = new THREE.MeshBasicMaterial({ 
-            color: 0xffff00, 
-            wireframe: true, 
-            transparent: true, 
-            opacity: 0.5 
-        });
-
-        // The cylinder will be created and updated dynamically based on collisionHeight
         const collisionCylinder = new THREE.Mesh(
-            new THREE.CylinderGeometry(visualizationRadius, visualizationRadius, this.collisionHeight, 16),
-            collisionMaterial
+            new THREE.CylinderGeometry(this.collisionRadius, this.collisionRadius, this.collisionHeight, 16),
+            new THREE.MeshBasicMaterial({ color: 0xffff00, wireframe: true, transparent: true, opacity: 0.5 })
         );
         collisionCylinder.name = 'collisionCylinder';
         this.collisionBoxVisualization.add(collisionCylinder);
@@ -258,9 +275,11 @@ export class Fighter {
         
         if (headHelper) {
             headHelper.position.copy(this.hurtSpheres.head.center);
+            headHelper.visible = this.hurtSpheres.head.radius > 0;
         }
         if (torsoHelper) {
             torsoHelper.position.copy(this.hurtSpheres.torso.center);
+            torsoHelper.visible = this.hurtSpheres.torso.radius > 0;
         }
 
         // Update attack spheres - hands
@@ -346,7 +365,7 @@ export class Fighter {
         HitboxSystem.updateAttackSpheres(this);
     }
 
-    loadAnim(name, loop, clamp = false, clips = []) {
+    loadAnim(name, loop, clamp = false, clips = [], aliases = []) {
         let clipIndex = null;
 
         // First try to get animation from character config
@@ -372,6 +391,23 @@ export class Fighter {
             clipIndex = selectEl ? parseInt(selectEl.value) : null;
         }
 
+        // Try alias name matches (case-insensitive partial)
+        if (clipIndex === null && aliases && aliases.length && clips && clips.length) {
+            const lowerAliases = aliases.map(a => a.toLowerCase());
+            clipIndex = clips.findIndex(clip => {
+                const lcName = clip.name.toLowerCase();
+                return lowerAliases.some(alias => lcName.includes(alias));
+            });
+            if (clipIndex === -1) clipIndex = null;
+        }
+
+        // As a last resort, try partial match on the provided name
+        if (clipIndex === null && clips && clips.length) {
+            const nameLower = name.toLowerCase();
+            clipIndex = clips.findIndex(clip => clip.name.toLowerCase().includes(nameLower));
+            if (clipIndex === -1) clipIndex = null;
+        }
+
         if (clipIndex !== null && clips[clipIndex]) {
             const clip = clips[clipIndex];
             const act = this.mixer.clipAction(clip);
@@ -386,11 +422,31 @@ export class Fighter {
         if (!next) return;
         const fadeTime = (fade === null || fade === undefined) ? this.animationFade : fade;
 
+        // Get playback speed from config (default to 1.5x for attack animations, 1.0 for others)
+        let baseSpeed = 1.0;
+        const isAttackAnim =
+            name === 'atk1' ||
+            name === 'atk2' ||
+            name.startsWith('atk1_') ||
+            name.startsWith('atk2_') ||
+            name.toLowerCase().includes('punch') ||
+            name.toLowerCase().includes('kick');
+        if (isAttackAnim) {
+            // Slow legs slightly compared to punches
+            const lower = name.toLowerCase();
+            const isLeg = lower.includes('kick') || lower.includes('atk2');
+            baseSpeed = isLeg ? 1.8 : 2.1;
+        } else if (name === 'jump' || name === 'crouch') {
+            baseSpeed = 2.5; // Much faster defensive animations
+        }
+        const playbackSpeed = this.characterConfig?.animationSettings?.playbackSpeed?.[name] ?? baseSpeed;
+
         // If same animation is already playing, just update direction if needed
         if (this.currAct === next) {
-            const currentTimeScale = next.timeScale || 1;
-            const needsReverse = reverse && currentTimeScale !== -1;
-            const needsForward = !reverse && currentTimeScale !== 1;
+            const currentTimeScale = next.timeScale || playbackSpeed;
+            const targetSpeed = reverse ? -playbackSpeed : playbackSpeed;
+            const needsReverse = reverse && currentTimeScale !== -playbackSpeed;
+            const needsForward = !reverse && currentTimeScale !== playbackSpeed;
 
             if (needsReverse || needsForward) {
                 // Reverse the animation direction smoothly
@@ -400,11 +456,11 @@ export class Fighter {
 
                 if (needsReverse) {
                     // Switch from forward to reverse
-                    next.timeScale = -1;
+                    next.timeScale = -playbackSpeed;
                     next.time = duration - currentTime;
                 } else {
                     // Switch from reverse to forward
-                    next.timeScale = 1;
+                    next.timeScale = playbackSpeed;
                     next.time = duration - currentTime;
                 }
             }
@@ -414,18 +470,69 @@ export class Fighter {
         // New animation - fade in
         next.reset().fadeIn(fadeTime).play();
         if (reverse) {
-            next.timeScale = -1;
+            next.timeScale = -playbackSpeed;
             next.time = next.getClip().duration; // Start from end when reversed
         } else {
-            next.timeScale = 1;
+            next.timeScale = playbackSpeed;
             next.time = 0; // Start from beginning when forward
         }
         if (this.currAct) this.currAct.fadeOut(fadeTime);
         this.currAct = next;
     }
 
-    update(dt, opp, gameState, keys = {}, camera = null) {
+    applyPlaybackCurves() {
+        if (!this.currAct) return;
+        const clip = this.currAct.getClip();
+        if (!clip || clip.duration <= 0) return;
+
+        const clipName = clip.name?.toLowerCase() || '';
+        const isJump = clipName.includes('jump');
+        const isCrouch = clipName.includes('crouch');
+
+        if (!isJump && !isCrouch) return;
+
+        const ratio = Math.min(Math.max(this.currAct.time / clip.duration, 0), 1);
+
+        // Fast at start, ease down toward end (quadratic ease-out)
+        const startSpeed = 3.2;
+        const endSpeed = 1.4;
+        const ease = Math.pow(1 - ratio, 2); // 1 at start, 0 at end
+        const targetSpeed = endSpeed + (startSpeed - endSpeed) * ease;
+
+        const direction = this.currAct.timeScale < 0 ? -1 : 1;
+        this.currAct.timeScale = direction * targetSpeed;
+    }
+
+    update(dt, opp, gameState, keys = {}, camera = null, collisionSystem = null) {
+        this.applyPlaybackCurves();
         this.mixer.update(dt);
+
+        if (this.prevState !== this.state) {
+            this.stateTimer = 0;
+            this.prevState = this.state;
+        } else {
+            this.stateTimer += dt;
+        }
+        if (this.state === 'JUMP') {
+            // Hold invuln at start until animation moves a bit
+            const clip = this.currAct?.getClip();
+            const ratio = clip && clip.duration > 0 ? this.currAct.time / clip.duration : 1;
+            const shouldTick = ratio > 0.08; // don't burn invuln before lift-off
+            if (shouldTick) {
+                // Decay slower to lengthen invulnerability during airborne startup
+                const decayRate = ratio < 0.7 ? 0.5 : 1.0;
+                this.jumpInvulnerabilityTimer = Math.max(0, this.jumpInvulnerabilityTimer - dt * decayRate);
+            }
+        } else {
+            this.jumpInvulnerabilityTimer = 0;
+        }
+
+        if (!this.isAI && this.state === 'ATTACK') {
+            const queuedAttack = this.getAttackInput(keys);
+            if (queuedAttack) {
+                this.comboQueuedType = queuedAttack;
+            }
+        }
 
         if (gameState !== 'FIGHT' && gameState !== 'OVER') return;
         if (this.state === 'DEAD' || this.state === 'WIN') return;
@@ -435,6 +542,9 @@ export class Fighter {
             target.y = this.mesh.position.y;
             this.mesh.lookAt(target);
         }
+
+        // Update world matrices after rotation to ensure bone positions are correct
+        this.mesh.updateMatrixWorld(true);
 
         this.updateCollisionCapsule();
 
@@ -458,30 +568,76 @@ export class Fighter {
         }
 
         if (this.state === 'ATTACK') {
-            if (!this.currAct || !this.currAct.isRunning()) {
+            const clip = this.currAct?.getClip();
+            const ratio = clip && clip.duration > 0 ? this.currAct.time / clip.duration : 1;
+            const withinCombo = ratio >= this.comboWindowStart && ratio <= this.comboWindowEnd;
+            this.comboWindowOpen = withinCombo;
+
+            if (this.comboQueuedType && this.comboCount < this.maxCombo && (withinCombo || ratio >= this.comboWindowEnd)) {
+                const nextType = this.comboQueuedType;
+                this.comboQueuedType = null;
+                this.comboWindowOpen = false;
+                this.attack(nextType, true);
+                return;
+            }
+
+            if (!this.currAct || !this.currAct.isRunning() || this.stateTimer > 2.5) {
+                if (this.comboQueuedType && this.comboCount < this.maxCombo) {
+                    const nextType = this.comboQueuedType;
+                    this.comboQueuedType = null;
+                    this.comboWindowOpen = false;
+                    this.attack(nextType, true);
+                    return;
+                }
                 this.state = 'IDLE';
+                this.atkGroup = null;
+                this.atkLimb = null;
+                this.activeAttackIndices = [];
+                this.comboCount = 0;
                 this.play('idle', this.animationFade);
             }
             return;
         }
 
         if (this.state === 'JUMP' || this.state === 'CROUCH') {
-            if (!this.currAct || !this.currAct.isRunning()) {
+            const clip = this.currAct?.getClip();
+            const ratio = clip && clip.duration > 0 ? this.currAct.time / clip.duration : 1;
+
+            if (this.state === 'JUMP' && ratio >= this.jumpCancelStart) {
+                // Allow buffering next action mid-jump
+                const nextAttack = this.getAttackInput(keys);
+                if (nextAttack) {
+                    this.attack(nextAttack);
+                    return;
+                }
+                if (this.keyDown(keys, 's')) {
+                    this.crouch();
+                    return;
+                }
+                if (ratio >= this.jumpAutoEnd) {
+                    this.state = 'IDLE';
+                    this.play('idle', this.animationFade);
+                    return;
+                }
+            }
+
+            if (!this.currAct || !this.currAct.isRunning() || this.stateTimer > 2.5) {
                 this.state = 'IDLE';
                 this.play('idle', this.animationFade);
             }
             return;
         }
 
-        const regen = this.characterConfig?.stats?.staminaRegen ?? CONFIG.combat.regen;
+        // Passive stamina regeneration - stamina recharges slowly over time
         if (this.st < this.maxSt) {
-            this.st = Math.min(this.maxSt, this.st + regen * dt);
+            const regenRate = this.characterConfig?.stats?.staminaRegen || 12;
+            this.st = Math.min(this.maxSt, this.st + regenRate * dt);
         }
         this.updateUI();
 
         if (gameState === 'FIGHT') {
             if (this.isAI) {
-                this.updateAI(dt, opp);
+                this.updateAI(dt, opp, collisionSystem);
             } else {
                 this.updateInput(dt, keys, camera);
             }
@@ -500,25 +656,41 @@ export class Fighter {
             return null;
         }
 
-        const attackSpheres = this.atkType === 'light' ?
-            (this.attackSpheres.hands || []) :
-            (this.attackSpheres.legs || []);
+        let attackSpheres = null;
+        if (this.atkGroup === 'hands') {
+            attackSpheres = this.attackSpheres.hands || [];
+        } else if (this.atkGroup === 'legs') {
+            attackSpheres = this.attackSpheres.legs || [];
+        } else if (this.atkType === 'light' || this.atkType === 'heavy') {
+            // Fallback for legacy attack types
+            attackSpheres = this.atkType === 'light' ? (this.attackSpheres.hands || []) : (this.attackSpheres.legs || []);
+        }
 
         if (!attackSpheres || attackSpheres.length === 0) return null;
 
+        const activeIndices = (Array.isArray(this.activeAttackIndices) && this.activeAttackIndices.length > 0)
+            ? this.activeAttackIndices
+            : attackSpheres.map((_, i) => i);
+
+        const canHitHead = opp.state !== 'CROUCH';
+        const canHitTorso = !(opp.state === 'JUMP' && opp.jumpInvulnerabilityTimer > 0);
+
         let hit = false;
 
-        for (let i = 0; i < attackSpheres.length; i++) {
+        for (const i of activeIndices) {
             const attackSphere = attackSpheres[i];
 
-            if (attackSphere.center.x === Infinity ||
+            if (!attackSphere ||
+                attackSphere.center.x === Infinity ||
                 attackSphere.center.y === Infinity ||
                 attackSphere.center.z === Infinity) {
                 continue;
             }
 
-            if (this.sphereIntersectsSphere(attackSphere, opp.hurtSpheres.head) ||
-                this.sphereIntersectsSphere(attackSphere, opp.hurtSpheres.torso)) {
+            const headHit = canHitHead && this.sphereIntersectsSphere(attackSphere, opp.hurtSpheres.head);
+            const torsoHit = canHitTorso && this.sphereIntersectsSphere(attackSphere, opp.hurtSpheres.torso);
+
+            if (headHit || torsoHit) {
                 hit = true;
                 break;
             }
@@ -534,10 +706,15 @@ export class Fighter {
 
         this.hitRegistered = true;
         const combatStats = this.getCombatStats(this.atkType);
-        const damage = combatStats.dmg;
+        const damage = combatStats?.dmg ?? 0;
         const impactPos = opp.mesh.position.clone();
         impactPos.y += opp.collisionHeight * 0.5;
-        opp.takeDamage(damage, this.atkType);
+        opp.takeDamage(damage, this.atkType, this); // Pass attacker for pushback
+
+        // Gain stamina when landing a successful hit - more stamina for heavier hits
+        const staminaGain = this.isHeavyAttack(this.atkType) ? 15 : 8; // Heavy hits give more stamina
+        this.st = Math.min(this.maxSt, this.st + staminaGain);
+        this.updateUI();
 
         return {
             attacker: this,
@@ -554,9 +731,50 @@ export class Fighter {
         return distance < minDistance;
     }
 
-    takeDamage(amt, type) {
+    takeDamage(amt, type, attacker) {
         this.hp = Math.max(0, this.hp - amt);
-        this.st = Math.max(0, this.st - 10);
+        // Gain stamina when getting hit - more stamina for heavier hits
+        const staminaGainOnHit = this.isHeavyAttack(type) ? 20 : 12;
+        this.st = Math.min(this.maxSt, this.st + staminaGainOnHit);
+        
+        // Pushback when hit - push away from attacker with friction
+        if (attacker && attacker.mesh) {
+            const pushDirection = new THREE.Vector3().subVectors(this.mesh.position, attacker.mesh.position);
+            pushDirection.y = 0; // Keep pushback horizontal
+            if (pushDirection.lengthSq() > 0) {
+                pushDirection.normalize();
+                
+                // Increased pushback amounts: light = smaller, heavy = larger
+                let pushAmount = this.isHeavyAttack(type) ? 1.5 : 0.8; // Much larger pushback
+                
+                // Calculate potential new position
+                const potentialNewPos = this.mesh.position.clone().add(pushDirection.clone().multiplyScalar(pushAmount));
+                
+                // Check if pushback would cause collision with attacker (friction effect)
+                const distanceAfterPush = potentialNewPos.distanceTo(attacker.mesh.position);
+                const minCollisionDistance = this.collisionRadius + attacker.collisionRadius;
+                
+                // If pushback would cause collision, apply significant friction (reduce pushback)
+                if (distanceAfterPush < minCollisionDistance * 1.2) { // 1.2x for a bit of buffer
+                    const frictionFactor = 0.25; // Reduce to 25% when colliding (strong friction)
+                    pushAmount *= frictionFactor;
+                }
+                
+                const pushVector = pushDirection.multiplyScalar(pushAmount);
+                
+                // Apply pushback
+                this.mesh.position.add(pushVector);
+                
+                // Keep within arena bounds
+                if (this.mesh.position.length() > 20) {
+                    this.mesh.position.setLength(20);
+                }
+                
+                // Update collision capsule after pushback
+                this.updateCollisionCapsule();
+            }
+        }
+        
         if (this.hp <= 0) {
             this.state = 'DEAD';
             this.play('die', this.animationFade);
@@ -582,25 +800,78 @@ export class Fighter {
     }
 
     getCombatStats(type) {
-        return this.characterConfig?.combat?.[type] || CONFIG.combat[type];
+        const combatConfig = this.characterConfig?.combat || {};
+        const configCombat = CONFIG.combat || {};
+
+        if (combatConfig[type]) return combatConfig[type];
+        if (configCombat[type]) return configCombat[type];
+
+        if (type === 'leftHand' || type === 'rightHand') {
+            return combatConfig.light || configCombat.light;
+        }
+        if (type === 'leftLeg' || type === 'rightLeg') {
+            return combatConfig.heavy || configCombat.heavy;
+        }
+
+        return combatConfig.light || configCombat.light || combatConfig.heavy || configCombat.heavy;
     }
 
-    attack(type) {
+    isHeavyAttack(type) {
+        return type === 'heavy' || type === 'leftLeg' || type === 'rightLeg';
+    }
+
+    attack(type, isChain = false) {
+        const attackMap = {
+            leftHand: { animations: ['punchL', 'atk1_left', 'atk1'], group: 'hands', indices: [0, 1], limb: 'left' },
+            rightHand: { animations: ['punchR', 'atk1_right', 'atk1'], group: 'hands', indices: [2, 3], limb: 'right' },
+            leftLeg: { animations: ['kickL', 'atk2_left', 'atk2'], group: 'legs', indices: [0, 1], limb: 'left' },
+            rightLeg: { animations: ['kickR', 'atk2_right', 'atk2'], group: 'legs', indices: [2, 3], limb: 'right' },
+            // Legacy/fallback types
+            light: { animations: ['atk1'], group: 'hands', indices: [0, 1, 2, 3], limb: 'any' },
+            heavy: { animations: ['atk2'], group: 'legs', indices: [0, 1, 2, 3], limb: 'any' }
+        };
+
+        const attackInfo = attackMap[type];
+        if (!attackInfo) return;
+
+        if (this.state === 'ATTACK' && !isChain) {
+            this.comboQueuedType = type; // buffer for combo
+            this.logInput(`queue:${type}`);
+            return;
+        }
+
         const combatStats = this.getCombatStats(type);
-        const cost = combatStats.cost;
+        const cost = combatStats?.cost ?? 0;
         if (this.st < cost) return;
         this.st -= cost;
         this.state = 'ATTACK';
         this.atkType = type;
+        this.atkGroup = attackInfo.group;
+        this.atkLimb = attackInfo.limb;
+        this.activeAttackIndices = attackInfo.indices || [];
         this.hitRegistered = false;
-        this.play(type === 'light' ? 'atk1' : 'atk2', this.animationFade);
+        this.comboQueuedType = null;
+        this.comboWindowOpen = false;
+        this.comboCount = isChain ? Math.min(this.comboCount + 1, this.maxCombo) : 1;
+
+        const animCandidates = attackInfo.animations || [];
+        const chosenAnim = animCandidates.find(name => this.actions[name]) || animCandidates[0];
+        const fade = isChain ? Math.min(this.animationFade, 0.05) : this.animationFade;
+        this.play(chosenAnim, fade);
+        if (!this.actions[chosenAnim]) {
+            // Safety: if no animation was found, don't get stuck in ATTACK
+            this.state = 'IDLE';
+        }
+        this.logInput(`atk${isChain ? ' (chain)' : ''}:${type}`);
     }
 
     jump() {
         if (this.state !== 'IDLE') return;
         if (!this.actions['jump']) return; // Animation not loaded
         this.state = 'JUMP';
+        this.jumpInvulnerabilityTimer = 1.2; // Longer invulnerability to cover jump takeoff
         this.play('jump', this.animationFade);
+        this.logInput('jump');
     }
 
     crouch() {
@@ -608,49 +879,58 @@ export class Fighter {
         if (!this.actions['crouch']) return; // Animation not loaded
         this.state = 'CROUCH';
         this.play('crouch', this.animationFade);
+        this.logInput('crouch');
+    }
+
+    getAttackInput(keys) {
+        if (keys['ArrowLeft']) return 'leftHand';
+        if (keys['ArrowUp']) return 'rightHand';
+        if (keys['ArrowDown']) return 'leftLeg';
+        if (keys['ArrowRight']) return 'rightLeg';
+        return null;
+    }
+
+    keyDown(keys, key) {
+        if (!keys) return false;
+        return !!(keys[key] || keys[key.toLowerCase?.()] || keys[key.toUpperCase?.()]);
+    }
+
+    logInput(label) {
+        this.inputLog.push({ label, t: performance.now() });
+        if (this.inputLog.length > 8) this.inputLog.shift();
     }
 
     updateInput(dt, keys, camera) {
-        if (keys['ArrowUp']) { this.attack('light'); return; }
-        if (keys['ArrowDown']) { this.attack('heavy'); return; }
-        if (keys[' ']) { this.jump(); return; }
-        if (keys['Control']) { this.crouch(); return; }
+        // Attack controls
+        const attackInput = this.getAttackInput(keys);
+        if (attackInput) { this.attack(attackInput); return; }
+        
+        // W = Jump, S = Crouch
+        if (this.keyDown(keys, 'w')) { this.jump(); return; }
+        if (this.keyDown(keys, 's')) { this.crouch(); return; }
 
-        // Calculate camera-relative movement vectors
-        const cameraForward = new THREE.Vector3();
-        if (camera && camera.getWorldDirection) {
-            camera.getWorldDirection(cameraForward);
-        } else {
-            cameraForward.set(0, 0, 1);
-        }
-        cameraForward.y = 0; // Keep movement on horizontal plane
-        cameraForward.normalize();
-
-        const cameraRight = new THREE.Vector3();
-        cameraRight.crossVectors(cameraForward, new THREE.Vector3(0, 1, 0)).normalize();
-
-        // Get character's forward direction (where they're facing)
+        // Get character's forward direction (toward opponent)
         const charForward = new THREE.Vector3(0, 0, 1);
         charForward.applyQuaternion(this.mesh.quaternion);
         charForward.y = 0;
         charForward.normalize();
 
-        // Create movement vector relative to camera view
+        // A/D = Move back and forth (toward/away from opponent)
+        // D = move forward (toward opponent), A = move backward (away from opponent)
         let mov = new THREE.Vector3();
-        if (keys['a']) mov.addScaledVector(cameraRight, -1);
-        if (keys['d']) mov.addScaledVector(cameraRight, 1);
-        if (keys['w']) mov.addScaledVector(cameraForward, 1);
-        if (keys['s']) mov.addScaledVector(cameraForward, -1);
+        let isBackward = false;
+        
+        if (this.keyDown(keys, 'd')) {
+            mov.addScaledVector(charForward, 1); // Move toward opponent
+            isBackward = false;
+        }
+        if (this.keyDown(keys, 'a')) {
+            mov.addScaledVector(charForward, -1); // Move away from opponent
+            isBackward = true;
+        }
 
         if (mov.lengthSq() > 0) {
-            const movDir = mov.clone().normalize();
             mov.normalize().multiplyScalar(this.moveSpeed * dt);
-
-            // Determine if moving forward or backward relative to character facing
-            // Dot product: positive = forward, negative = backward
-            const dot = movDir.dot(charForward);
-            const isBackward = dot < -0.1; // Moving opposite to facing direction
-
             this.mesh.position.add(mov);
             if (this.mesh.position.length() > 20) this.mesh.position.setLength(20);
 
@@ -663,53 +943,25 @@ export class Fighter {
         }
     }
 
-    updateAI(dt, opp) {
-        const aiConfig = this.characterConfig?.ai || {};
-        const aggression = aiConfig.aggression ?? 0.5;
-        const retreatDistance = aiConfig.retreatDistance ?? 2.0;
-        const attackChance = aiConfig.attackChance ?? 0.5;
-        const dist = this.mesh.position.distanceTo(opp.mesh.position);
-
-        // Update decision timer (only for decision-making, not movement)
-        this.aiTimer -= dt;
-        const shouldMakeDecision = this.aiTimer <= 0;
-        
-        if (shouldMakeDecision) {
-            // Make new decision periodically
-            this.aiTimer = Math.random() * 0.3 + 0.1; // Faster decision updates
-            
-            // Store current decision and execute attacks immediately
-            if (dist < retreatDistance && Math.random() > aggression) {
-                this.aiMoveDecision = 'retreat';
-            } else if (dist < 2.8 && Math.random() < attackChance && this.state === 'IDLE') {
-                // Attack decision - execute immediately
-                this.aiMoveDecision = 'attack';
-                this.attack(Math.random() > 0.6 ? 'heavy' : 'light');
-                return; // Don't move this frame if attacking
-            } else {
-                this.aiMoveDecision = 'chase';
-            }
-        }
-
-        // Execute movement continuously based on current decision (skip if attacking)
-        if (this.state === 'ATTACK' || this.state === 'STUN') {
-            return; // Don't move during attack or stun
-        }
-
-        if (this.aiMoveDecision === 'retreat') {
-            // Retreat - move away from opponent
-            const dir = new THREE.Vector3().subVectors(this.mesh.position, opp.mesh.position).normalize();
-            this.mesh.position.addScaledVector(dir, this.moveSpeed * dt);
-            this.play('walk', this.animationFade);
+    updateAI(dt, opp, collisionSystem) {
+        // Delegate to AI Controller if available
+        if (this.aiController && collisionSystem) {
+            this.aiController.updateAI(this, dt, opp, collisionSystem);
         } else {
-            // Chase - move towards opponent (default, or when attack decision is active but can't attack yet)
-            const dir = new THREE.Vector3().subVectors(opp.mesh.position, this.mesh.position).normalize();
-            this.mesh.position.addScaledVector(dir, this.moveSpeed * dt);
-            this.play('walk', this.animationFade);
+            // Fallback to simple AI if controller not available
+            console.warn('AI Controller not available, using fallback AI');
+            const dist = this.mesh.position.distanceTo(opp.mesh.position);
+            if (dist < 2.5 && this.state === 'IDLE' && Math.random() < 0.3) {
+                const attacks = ['leftHand', 'rightHand', 'leftLeg', 'rightLeg'];
+                const attackType = attacks[Math.floor(Math.random() * attacks.length)];
+                this.attack(attackType);
+            } else if (dist > 2.5) {
+                const dir = new THREE.Vector3().subVectors(opp.mesh.position, this.mesh.position).normalize();
+                this.mesh.position.addScaledVector(dir, this.moveSpeed * dt);
+                this.play('walk', this.animationFade);
+            }
+            if (this.mesh.position.length() > 20) this.mesh.position.setLength(20);
         }
-
-        // Keep within arena bounds
-        if (this.mesh.position.length() > 20) this.mesh.position.setLength(20);
     }
 
     updateUI() {

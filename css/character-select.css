@@ -259,7 +259,7 @@
     object-fit: cover;
     object-position: center center;
     z-index: 1;
-    transition: opacity 0.4s ease 0.1s;
+    transition: opacity 0.5s ease-in-out;
     opacity: 0;
 }
 
@@ -307,6 +307,8 @@
     display: block;
     background: transparent;
     z-index: 2;
+    transition: opacity 0.5s ease-in-out;
+    opacity: 0;
 }
 
 /* Character Name Overlay */

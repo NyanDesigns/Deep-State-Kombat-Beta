@@ -301,12 +301,16 @@ export class CharacterSelector {
         skeleton.className = 'character-card-skeleton';
 
         // Add PNG background image
-        // Check if character has 3D model - if not, use T.png and add face-zoom class
+        // Always use T.png with face-zoom for Brandon as placeholder, regardless of 3D model availability
+        // For other characters without 3D models, also use T.png with face-zoom
         const has3DModel = this.characterManager.isCharacterAvailable(character.id);
-        const pngCandidates = this.getCharacterPNGCandidates(character, null, false, !has3DModel);
+        const isBrandon = character.id === 'brandon';
+        // Always use thumbnail (T.png) mode for Brandon, or for characters without 3D models
+        const useThumbnail = isBrandon || !has3DModel;
+        const pngCandidates = this.getCharacterPNGCandidates(character, null, false, useThumbnail);
         const backgroundImg = document.createElement('img');
         backgroundImg.className = 'character-card-background';
-        if (!has3DModel) {
+        if (useThumbnail) {
             backgroundImg.classList.add('face-zoom');
         }
         backgroundImg.alt = character.name;
@@ -391,12 +395,13 @@ export class CharacterSelector {
         // Set initial dimensions - will be updated when scene is created
         canvas.width = 200;
         canvas.height = 200;
-        canvas.style.display = 'none'; // Hidden until 3D model loads
+        canvas.style.display = 'block'; // Visible but transparent until 3D model loads
         canvas.style.position = 'absolute';
         canvas.style.top = '0';
         canvas.style.left = '0';
         canvas.style.width = '100%';
         canvas.style.height = '100%';
+        canvas.style.opacity = '0'; // Start transparent for cross-fade
 
         // Character name overlay - start hidden
         const name = document.createElement('div');
@@ -429,18 +434,30 @@ export class CharacterSelector {
         if (this.characterManager.isCharacterAvailable(character.id)) {
             setTimeout(() => {
                 this.loadMiniSceneModel(character).then(() => {
-                    // Show canvas, hide PNG background when 3D loads
+                    // Cross-fade transition: PNG fades out, 3D canvas fades in
+                    // Ensure canvas is visible (display block) but start at opacity 0
                     canvas.style.display = 'block';
                     canvas.style.visibility = 'visible';
-                    canvas.style.opacity = '1';
-                    backgroundImg.style.opacity = '0.2'; // Keep PNG slightly visible behind 3D
+                    
+                    // Trigger cross-fade: PNG fades out, Canvas fades in simultaneously
+                    requestAnimationFrame(() => {
+                        backgroundImg.style.opacity = '0';
+                        canvas.style.opacity = '1';
+                    });
+                    
+                    // After transition completes (~500ms), completely hide PNG
+                    setTimeout(() => {
+                        backgroundImg.style.display = 'none';
+                    }, 500);
+                    
                     modelLoaded = true;
                     checkLoadingComplete();
-                    console.log(`Canvas shown for ${character.id}, z-index: ${window.getComputedStyle(canvas).zIndex}`);
+                    console.log(`3D model loaded and cross-fade started for ${character.id}`);
                 }).catch((error) => {
                     console.error(`Failed to load 3D model for ${character.id}:`, error);
-                    // Keep canvas hidden if loading failed
+                    // Keep canvas hidden if loading failed - PNG will remain visible
                     canvas.style.display = 'none';
+                    canvas.style.opacity = '0';
                     // Still mark as loaded (background will show)
                     modelLoaded = true;
                     checkLoadingComplete();

@@ -220,14 +220,6 @@ export class PreviewScene {
 
         this.miniScenes[cellId] = miniSceneData;
         
-        // Add a test object to verify rendering works (will be removed when model loads)
-        const testGeometry = new THREE.BoxGeometry(0.5, 0.5, 0.5);
-        const testMaterial = new THREE.MeshStandardMaterial({ color: 0xff0000 });
-        const testCube = new THREE.Mesh(testGeometry, testMaterial);
-        testCube.position.set(0, 1.2, 0);
-        testCube.name = 'test-cube';
-        scene.add(testCube);
-        
         // Initial render will happen in update() loop via master renderSystem
         console.log(`Mini-scene created for ${cellId}`);
         
@@ -420,34 +412,6 @@ export class PreviewScene {
                 }
             }
         });
-
-        // Keep test cube visible for debugging - remove it after a delay
-        const testCube = miniScene.scene.getObjectByName('test-cube');
-        if (testCube) {
-            // Keep test cube for 2 seconds to verify rendering works
-            setTimeout(() => {
-                if (testCube.parent && testCube.parent === miniScene.scene) {
-                    miniScene.scene.remove(testCube);
-                    testCube.geometry.dispose();
-                    testCube.material.dispose();
-                    console.log(`Test cube removed from ${cellId}`);
-
-                    // Re-render immediately after removing test cube using master renderSystem
-                    if (this.renderSystem && miniScene.scene && miniScene.camera && miniScene.canvas) {
-                        const rect = miniScene.canvas.getBoundingClientRect();
-                        if (rect.width > 0 && rect.height > 0) {
-                            this.renderSystem.renderSceneToCanvas(
-                                miniScene.scene,
-                                miniScene.camera,
-                                miniScene.canvas,
-                                rect.width,
-                                rect.height
-                            );
-                        }
-                    }
-                }
-            }, 2000);
-        }
 
         // Add to scene
         miniScene.scene.add(model);

@@ -324,7 +324,7 @@ export class PreviewScene {
         const size = new THREE.Vector3();
         box.getSize(size);
         const h = size.y || 1;
-        const targetHeight = 14.0; // Ultra aggressive scale to dominate the portrait with the head
+        const targetHeight = 18.0; // Maximal aggressive scale to dominate the portrait with the head
         const scale = targetHeight / h;
         model.scale.setScalar(scale);
         model.updateMatrixWorld(true);
@@ -351,6 +351,8 @@ export class PreviewScene {
         const headTarget = new THREE.Vector3(0, 1.0, 0); // Lower anchor to push the model down in frame while keeping face centered
         const moveToTarget = headTarget.clone().sub(headPos);
         model.position.add(moveToTarget);
+        const extraDownOffset = -8.0; // push model even further down in frame to keep legs out while zoomed in
+        model.position.y += extraDownOffset;
         model.updateMatrixWorld(true);
 
         // Compute portrait bounding sphere (favor head/shoulders instead of whole body)
@@ -359,8 +361,8 @@ export class PreviewScene {
         finalBox.getBoundingSphere(finalSphere);
 
         const portraitBox = finalBox.clone();
-        const portraitHeightUp = 0.08;   // maximum tight above the head
-        const portraitHeightDown = 0.12; // maximum tight below to focus on face/shoulders only
+        const portraitHeightUp = 0.08;   // keep ultra-tight above the head
+        const portraitHeightDown = 0.12; // keep ultra-tight below to focus on face/shoulders only
         portraitBox.min.y = Math.max(headTarget.y - portraitHeightDown, finalBox.min.y);
         portraitBox.max.y = Math.min(headTarget.y + portraitHeightUp, finalBox.max.y);
         if (portraitBox.min.y >= portraitBox.max.y) {
@@ -376,10 +378,10 @@ export class PreviewScene {
         const fovY = THREE.MathUtils.degToRad(cam.fov || 36);
         const aspect = cam.aspect || 1;
         const fovX = 2 * Math.atan(Math.tan(fovY / 2) * aspect);
-        const fitMargin = 0.4; // push in even tighter
+        const fitMargin = 0.2; // maximum zoom-in; nearly edge-to-edge
         const distV = (effectiveSphere.radius * fitMargin) / Math.tan(fovY / 2);
         const distH = (effectiveSphere.radius * fitMargin) / Math.tan(fovX / 2);
-        const fitDist = Math.max(distV, distH, (cam.near || 0.1) * 2.0); // avoid near-plane clipping
+        const fitDist = Math.max(distV, distH, (cam.near || 0.1) * 3.0); // avoid near-plane clipping
 
         // Position camera in front of the model, looking at the head target
         const viewDir = new THREE.Vector3(0, 0, 1); // camera sits in +Z, looks toward -Z

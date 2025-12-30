@@ -6,6 +6,7 @@ export class PauseMenu {
         this.onMainMenu = null;
         this.debugOptions = {
             hitboxes: false,
+            collisionBox: false,
             params: false,
             range: false,
             timer: false
@@ -57,13 +58,14 @@ export class PauseMenu {
     }
 
     setupDebugOptions() {
-        const debugOptions = ['hitboxes', 'params', 'range', 'timer'];
+        const debugOptions = ['hitboxes', 'collision-box', 'params', 'range', 'timer'];
 
         debugOptions.forEach(option => {
             const checkbox = document.getElementById('debug-' + option);
             if (checkbox) {
                 checkbox.addEventListener('change', (e) => {
-                    this.debugOptions[option] = e.target.checked;
+                    const optionKey = option === 'collision-box' ? 'collisionBox' : option;
+                    this.debugOptions[optionKey] = e.target.checked;
                     if (this.onDebugOptionChange) {
                         this.onDebugOptionChange(this.debugOptions);
                     }
@@ -95,9 +97,10 @@ export class PauseMenu {
     setDebugOptions(options) {
         this.debugOptions = { ...options };
 
-        // Update checkboxes
+        // Update checkboxes (map option keys to checkbox IDs)
         Object.keys(this.debugOptions).forEach(option => {
-            const checkbox = document.getElementById('debug-' + option);
+            const checkboxId = option === 'collisionBox' ? 'debug-collision-box' : 'debug-' + option;
+            const checkbox = document.getElementById(checkboxId);
             if (checkbox) {
                 checkbox.checked = this.debugOptions[option];
             }
@@ -108,5 +111,6 @@ export class PauseMenu {
         }
     }
 }
+
 
 

@@ -34,8 +34,9 @@ export class RenderSystem {
             CONFIG.pixelation.width,
             CONFIG.pixelation.height,
             {
-                minFilter: THREE.NearestFilter,
-                magFilter: THREE.NearestFilter,
+                // Use linear filtering with higher resolution to soften pixelation
+                minFilter: THREE.LinearFilter,
+                magFilter: THREE.LinearFilter,
                 format: THREE.RGBAFormat
             }
         );
@@ -113,7 +114,13 @@ export class RenderSystem {
         if (this.pixelationQuad && this.pixelationQuad.material) {
             this.pixelationQuad.material.uniforms.resolution.value.set(window.innerWidth, window.innerHeight);
         }
+
+        // Keep the internal render target aligned with configured resolution after resizes
+        if (this.lowResRenderTarget) {
+            this.lowResRenderTarget.setSize(CONFIG.pixelation.width, CONFIG.pixelation.height);
+        }
     }
 }
+
 
 

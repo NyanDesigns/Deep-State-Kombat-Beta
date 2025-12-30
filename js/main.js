@@ -7,6 +7,9 @@ import { SceneManager } from './core/SceneManager.js';
 import { CameraController } from './core/CameraController.js';
 import { RenderSystem } from './core/RenderSystem.js';
 import { ArenaBuilder } from './core/ArenaBuilder.js';
+import { AppStateManager } from './core/AppStateManager.js';
+import { LoadingOrchestrator } from './core/LoadingOrchestrator.js';
+import { SystemInitializer } from './core/SystemInitializer.js';
 
 // Game systems
 import { GameState } from './game/GameState.js';
@@ -19,7 +22,7 @@ import { UIManager } from './ui/UIManager.js';
 import { SetupScreen } from './ui/SetupScreen.js';
 import { PreviewScene } from './ui/PreviewScene.js';
 import { CharacterSelector } from './ui/CharacterSelector.js';
-import { LoadingManager } from './ui/LoadingManager.js';
+import { UIStateController } from './ui/UIStateController.js';
 
 // Character systems
 import { CharacterManager } from './characters/CharacterManager.js';
@@ -32,29 +35,13 @@ import { FireParticleSystem } from './systems/FireParticleSystem.js';
 
 let fighters = [];
 
-// Initialize all systems
-const sceneManager = new SceneManager();
-const cameraController = new CameraController(sceneManager);
-const renderSystem = new RenderSystem(sceneManager);
-const arenaBuilder = new ArenaBuilder(sceneManager);
-
-const gameState = new GameState();
-const combatSystem = new CombatSystem();
-const collisionSystem = new CollisionSystem();
-
-const uiManager = new UIManager();
-const setupScreen = new SetupScreen();
-const previewScene = new PreviewScene(sceneManager);
-
-const storageManager = new StorageManager();
-const characterManager = new CharacterManager();
-const characterSelector = new CharacterSelector(characterManager, previewScene, storageManager);
-
-const inputHandler = new InputHandler();
-const effectsSystem = new EffectsSystem();
-const loadingManager = new LoadingManager();
-
-// Fire particle system - initialized early for loading sequence
+// Global system references (will be set during bootstrap)
+let sceneManager, cameraController, renderSystem, arenaBuilder;
+let gameState, combatSystem, collisionSystem;
+let uiManager, setupScreen, previewScene;
+let storageManager, characterManager, characterSelector;
+let inputHandler, effectsSystem;
+let appStateManager, uiStateController;
 let fireParticleSystem = null;
 
 function setupCallbacks() {
@@ -102,6 +89,14 @@ function setupCallbacks() {
     uiManager.pauseMenu.onDebugOptionChange = (options) => {
         uiManager.debugPanel.setOptions(options);
         storageManager.saveGameSettings({ debug: options });
+        
+        // Update fighter visualizations
+        if (fighters.length === 2) {
+            fighters[0].setHitboxVisibility(options.hitboxes || false);
+            fighters[0].setCollisionBoxVisibility(options.collisionBox || false);
+            fighters[1].setHitboxVisibility(options.hitboxes || false);
+            fighters[1].setCollisionBoxVisibility(options.collisionBox || false);
+        }
     };
 
     // Character selector callbacks (for logging/extension)
@@ -125,6 +120,33 @@ function setupCallbacks() {
             gameState.pause();
         } else if (gameState.getState() === 'PAUSED') {
             gameState.resume();
+        }
+    });
+
+    // Handle Escape key in setup screen to cancel selections
+    inputHandler.setEscapeSetupCallback(() => {
+        if (gameState.getState() === 'SETUP') {
+            const selectedCharacters = characterSelector.getSelectedCharacters();
+            
+            // If both players are selected, cancel P2 first
+            if (selectedCharacters.p1 && selectedCharacters.p2) {
+                characterSelector.clearSelection('p2');
+            }
+            // If only P1 is selected, cancel P1
+            else if (selectedCharacters.p1) {
+                characterSelector.clearSelection('p1');
+            }
+            // If only P2 is selected, cancel P2
+            else if (selectedCharacters.p2) {
+                characterSelector.clearSelection('p2');
+            }
+        } else {
+            // Not in setup, handle pause logic
+            if (gameState.getState() === 'FIGHT') {
+                gameState.pause();
+            } else if (gameState.getState() === 'PAUSED') {
+                gameState.resume();
+            }
         }
     });
 }
@@ -152,15 +174,76 @@ function handleStateChange(newState) {
     }
 }
 
-async function init() {
+/**
+ * Bootstrap phase - Create all system instances
+ */
+function bootstrap() {
+    // Note: storageManager and appStateManager are already created in init()
+    
+    // Core systems
+    sceneManager = new SceneManager();
+    cameraController = new CameraController(sceneManager);
+    renderSystem = new RenderSystem(sceneManager);
+    arenaBuilder = new ArenaBuilder(sceneManager);
+
+    // Game systems
+    gameState = new GameState();
+    combatSystem = new CombatSystem();
+    collisionSystem = new CollisionSystem();
+
+    // UI systems
+    uiManager = new UIManager();
+    setupScreen = new SetupScreen();
+
+    // Character systems
+    characterManager = new CharacterManager();
+
+    // Create UIStateController
+    uiStateController = new UIStateController();
+    
+    // Preview scene (depends on sceneManager)
+    previewScene = new PreviewScene(sceneManager);
+    characterSelector = new CharacterSelector(characterManager, previewScene, storageManager);
+
+    // Utility systems
+    inputHandler = new InputHandler();
+    effectsSystem = new EffectsSystem();
+
+    return {
+        sceneManager,
+        cameraController,
+        renderSystem,
+        arenaBuilder,
+        gameState,
+        combatSystem,
+        collisionSystem,
+        uiManager,
+        setupScreen,
+        previewScene,
+        storageManager,
+        characterManager,
+        characterSelector,
+        inputHandler,
+        effectsSystem,
+        appStateManager,
+        uiStateController
+    };
+}
+
+/**
+ * Initialize all systems
+ */
+async function initializeSystems() {
+    // Initialize core rendering systems first
     sceneManager.init();
     renderSystem.init();
     arenaBuilder.buildArena();
     effectsSystem.setCamera(sceneManager.camera);
 
+    // Initialize character system (async)
     await characterManager.initialize();
 
-    // Initialize UI systems (but don't show everything yet)
+    // Initialize UI systems
     uiManager.init();
     setupScreen.init();
     previewScene.init();
@@ -172,111 +255,178 @@ async function init() {
         uiManager.debugPanel.setOptions(savedSettings.debug);
     }
 
+    // Setup all callbacks
     setupCallbacks();
 
-    // Show setup screen and set game state before starting loading sequence
+    // Show setup screen and set game state
     gameState.setState('SETUP');
     setupScreen.show();
-
-    // Start loading sequence: particles → title → grid → characters
-    startLoadingSequence();
-
-    animate();
 }
 
-function startLoadingSequence() {
-    // Phase 1: Start particle system immediately (before other UI)
-    loadingManager.start({
-        onParticlesReady: () => {
-            // Initialize and start fire particle system
-            fireParticleSystem = new FireParticleSystem('fire-particles-canvas-back', 'fire-particles-canvas-front');
-            fireParticleSystem.start();
-        },
-        onTitleReady: () => {
-            // Trigger title animation by adding class
-            const title = document.querySelector('.game-title-logo');
-            if (title) {
-                title.classList.add('title-visible');
-            }
-        },
-        onGridReady: () => {
-            // Trigger pop-in animations for grid and name displays
-            const gridContainer = document.getElementById('character-grid-container');
-            const nameDisplays = document.querySelectorAll('.character-name-display');
+/**
+ * Start loading sequence (first visit with animations)
+ */
+async function startFirstLoadSequence() {
+    // Import LoadingManager for backward compatibility with CharacterSelector
+    const { LoadingManager } = await import('./ui/LoadingManager.js');
+    const loadingManager = new LoadingManager();
+    
+    const orchestrator = LoadingOrchestrator.createFirstLoad(uiStateController);
+    
+    // Wire up loading callbacks
+    orchestrator.onParticlesReady = () => {
+        fireParticleSystem = new FireParticleSystem('fire-particles-canvas-back', 'fire-particles-canvas-front');
+        fireParticleSystem.start();
+    };
+
+    orchestrator.onTitleReady = () => {
+        uiStateController.showTitle();
+    };
+
+    orchestrator.onGridReady = () => {
+        uiStateController.showGrid();
+    };
+
+    orchestrator.onCharactersReady = () => {
+        // Initialize character selector with sequential loading
+        characterSelector.init(loadingManager, () => {
+            // Loading complete - show remaining UI elements
+            uiStateController.showInfoPanel();
+            uiStateController.showChooseFighterText();
+            uiStateController.showBackgroundPNGs();
             
-            // Grid container pops in first
-            if (gridContainer) {
-                gridContainer.classList.add('pop-visible');
+            // Mark orchestrator complete
+            if (orchestrator.onComplete) {
+                orchestrator.onComplete();
             }
-            
-            // Stagger the name displays slightly
-            nameDisplays.forEach((display, index) => {
-                setTimeout(() => {
-                    display.classList.add('pop-visible');
-                }, 200 + (index * 100)); // 200ms delay + 100ms between each
-            });
-        },
-        onCharactersReady: () => {
-            // Initialize character selector with sequential loading
-            characterSelector.init(loadingManager, () => {
-                // Loading complete - now show stat grid, then choose fighter text, then background PNGs
-                const infoPanel = document.getElementById('character-info-panel');
-                const chooseFighterText = document.getElementById('choose-fighter-text');
-                
-                if (infoPanel) {
-                    setTimeout(() => {
-                        infoPanel.classList.add('pop-visible');
-                    }, 100); // Even faster delay after characters finish loading
-                }
-                
-                // Choose fighter text slides in from top right before PNGs
-                if (chooseFighterText) {
-                    setTimeout(() => {
-                        chooseFighterText.classList.add('slide-in');
-                    }, 350); // Faster - appears after stat grid, before PNGs
-                }
-                
-                // Background PNGs slide in last - P1 first, then P2
-                const p1PNG = document.getElementById('p1-background-png-image');
-                const p2PNG = document.getElementById('p2-background-png-image');
-                
-                if (p1PNG) {
-                    setTimeout(() => {
-                        p1PNG.style.display = 'block'; // Make visible
-                        p1PNG.classList.add('slide-in');
-                    }, 700); // Faster - after choose fighter text starts (350ms + 350ms)
-                }
-                
-                if (p2PNG) {
-                    setTimeout(() => {
-                        p2PNG.style.display = 'block'; // Make visible
-                        p2PNG.classList.add('slide-in');
-                    }, 900); // Faster - 200ms delay after P1 starts
-                }
-                
-                loadingManager.complete();
-            });
-        },
-        onComplete: () => {
-            // All loading complete - normal interaction enabled
-            console.log('Loading sequence complete');
-        }
-    });
+        });
+    };
+
+    orchestrator.onComplete = () => {
+        console.log('Loading sequence complete');
+        appStateManager.completeFirstLoad();
+    };
+
+    await orchestrator.execute();
 }
+
+/**
+ * Start quick load (subsequent visits, skip animations)
+ */
+async function startQuickLoad() {
+    // Set loading state
+    appStateManager.setState(appStateManager.STATES.LOADING);
+    
+    const orchestrator = LoadingOrchestrator.createQuickLoad(uiStateController);
+    
+    // Wire up loading callbacks (same as first load, but executed instantly)
+    orchestrator.onParticlesReady = () => {
+        fireParticleSystem = new FireParticleSystem('fire-particles-canvas-back', 'fire-particles-canvas-front');
+        fireParticleSystem.start();
+    };
+
+    orchestrator.onTitleReady = () => {
+        uiStateController.showTitle();
+    };
+
+    orchestrator.onGridReady = () => {
+        uiStateController.showGrid();
+    };
+
+    orchestrator.onCharactersReady = () => {
+        // Initialize character selector without sequential loading (null = immediate mode)
+        characterSelector.init(null, () => {
+            // Character selector init complete
+            // UIStateController.setLoadedState() is called by QuickLoadStrategy
+            if (orchestrator.onComplete) {
+                orchestrator.onComplete();
+            }
+        });
+    };
+
+    orchestrator.onComplete = () => {
+        console.log('Quick load complete');
+        // Mark session as initialized and app as ready
+        appStateManager.completeFirstLoad();
+    };
+
+    await orchestrator.execute();
+}
+
+/**
+ * Main initialization function
+ */
+async function init() {
+    try {
+        // Create storage and appStateManager first (needed before bootstrap)
+        storageManager = new StorageManager();
+        appStateManager = new AppStateManager(storageManager);
+        
+        // Bootstrap: Create all systems
+        await appStateManager.bootstrap(bootstrap);
+        
+        // Initialize: Initialize systems and run loading sequence
+        await appStateManager.initialize(async () => {
+            await initializeSystems();
+            
+            // Determine loading strategy based on app state
+            const isFirstVisit = storageManager.isFirstVisit();
+            const initPreference = storageManager.getInitializationPreference();
+            
+            if (isFirstVisit || initPreference === 'always-animate') {
+                await startFirstLoadSequence();
+            } else {
+                await startQuickLoad();
+            }
+        });
+
+        // Start render loop
+        animate();
+    } catch (error) {
+        console.error('Initialization error:', error);
+        throw error;
+    }
+}
+
 
 async function startCountdown() {
-    document.getElementById('setup-screen').style.display = 'none';
+    console.log('startCountdown called');
+    
+    // Hide setup screen using the setupScreen method (which also triggers state change)
+    setupScreen.hide();
+    
+    // Also ensure it's hidden via direct manipulation
+    const setupScreenEl = document.getElementById('setup-screen');
+    if (setupScreenEl) {
+        setupScreenEl.style.display = 'none';
+        setupScreenEl.style.visibility = 'hidden';
+    }
+    
     uiManager.showHUD();
 
     try {
+        console.log('Spawning fighters...');
         await spawnFighters();
+        console.log('Fighters spawned successfully');
     } catch (error) {
         console.error('Failed to spawn fighters:', error);
         loadNewModels();
         return;
     }
+    
     gameState.resetTimer();
-    gameState.startCountdown(() => {});
+    console.log('Starting countdown...');
+    
+    // Ensure center-overlay is visible and ready
+    const overlay = document.getElementById('center-overlay');
+    if (overlay) {
+        overlay.style.display = 'block';
+        overlay.style.visibility = 'visible';
+    }
+    
+    gameState.startCountdown(() => {
+        console.log('Countdown completed, game should be in FIGHT state');
+    });
 }
 
 async function spawnFighters() {
@@ -297,6 +447,15 @@ async function spawnFighters() {
     fighters[1].loadAnimations(p2Data.model.animations || []);
     fighters[0].updateUI();
     fighters[1].updateUI();
+
+    // Apply saved debug options to fighters
+    const savedSettings = storageManager.loadGameSettings();
+    if (savedSettings?.debug) {
+        fighters[0].setHitboxVisibility(savedSettings.debug.hitboxes || false);
+        fighters[0].setCollisionBoxVisibility(savedSettings.debug.collisionBox || false);
+        fighters[1].setHitboxVisibility(savedSettings.debug.hitboxes || false);
+        fighters[1].setCollisionBoxVisibility(savedSettings.debug.collisionBox || false);
+    }
 }
 
 function restartFight() {
@@ -324,6 +483,19 @@ function loadNewModels() {
     if (fighters.length === 2) {
         sceneManager.scene.remove(fighters[0].mesh);
         sceneManager.scene.remove(fighters[1].mesh);
+        // Remove visualizations
+        if (fighters[0].hitboxVisualization) {
+            sceneManager.scene.remove(fighters[0].hitboxVisualization);
+        }
+        if (fighters[0].collisionBoxVisualization) {
+            sceneManager.scene.remove(fighters[0].collisionBoxVisualization);
+        }
+        if (fighters[1].hitboxVisualization) {
+            sceneManager.scene.remove(fighters[1].hitboxVisualization);
+        }
+        if (fighters[1].collisionBoxVisualization) {
+            sceneManager.scene.remove(fighters[1].collisionBoxVisualization);
+        }
     }
     fighters = [];
 

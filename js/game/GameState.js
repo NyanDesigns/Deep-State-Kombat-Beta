@@ -82,20 +82,36 @@ export class GameState {
     }
 
     startCountdown(callback) {
+        console.log('GameState.startCountdown called, current state:', this.state);
         this.setState('COUNTDOWN');
 
         const overlay = document.getElementById('center-overlay');
+        if (!overlay) {
+            console.error('center-overlay element not found!');
+            // Still transition to FIGHT state even if overlay is missing
+            this.setState('FIGHT');
+            if (callback) callback();
+            return;
+        }
+
+        // Ensure overlay is visible
+        overlay.style.display = 'block';
+        overlay.style.visibility = 'visible';
+        
         let count = 3;
 
         const tick = () => {
             if (count > 0) {
                 overlay.innerHTML = `<div class="big-text">${count}</div>`;
+                console.log(`Countdown: ${count}`);
                 count--;
                 setTimeout(tick, 1000);
             } else {
                 overlay.innerHTML = `<div class="big-text" style="color:#ff0044">FIGHT!</div>`;
+                console.log('Countdown: FIGHT!');
                 setTimeout(() => {
                     overlay.innerHTML = '';
+                    console.log('Transitioning to FIGHT state');
                     this.setState('FIGHT');
                     if (callback) callback();
                 }, 1000);
@@ -121,5 +137,6 @@ export class GameState {
         this.stopTimer();
     }
 }
+
 
 

@@ -41,8 +41,8 @@ export class CameraController {
         const dist = p1.distanceTo(p2);
 
         const target = mid.clone().add(new THREE.Vector3(0, 1.5, 0)); // Look at chest height
-        const zDist = CONFIG.cam.dist + (dist * 0.5); // Dynamic Zoom
-        const goal = new THREE.Vector3(mid.x, CONFIG.cam.height + (dist * 0.1), mid.z + zDist);
+        const zDist = CONFIG.cam.dist + (dist * 0.35); // Dynamic Zoom
+        const goal = new THREE.Vector3(mid.x, CONFIG.cam.height + (dist * 0.08), mid.z + zDist);
 
         this.camera.position.lerp(goal, dt * 5); // Increased lerp speed for better tracking
         this.camera.lookAt(target);
@@ -52,4 +52,3 @@ export class CameraController {
         this.shake = Math.max(this.shake, amount);
     }
 }
-

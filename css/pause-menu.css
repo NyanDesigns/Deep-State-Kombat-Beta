@@ -1,4 +1,4 @@
-/* Pause Menu - Pause overlay, debug checkboxes */
+/* Pause Menu - Tekken-Style HUD Redesign */
 
 #pause-menu {
     position: absolute;
@@ -6,100 +6,363 @@
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0,0,0,0.8);
+    background: radial-gradient(ellipse at center, rgba(20, 20, 30, 0.95) 0%, rgba(5, 5, 10, 0.98) 100%);
     z-index: 100;
     display: none;
     flex-direction: column;
     align-items: center;
     justify-content: center;
     pointer-events: auto;
+    backdrop-filter: blur(5px);
 }
 
 .pause-panel {
-    background: #1a1a1a;
-    padding: 30px;
-    border-radius: 10px;
-    border: 2px solid #333;
-    box-shadow: 0 20px 50px rgba(0,0,0,0.9);
-    min-width: 400px;
+    /* Transparent digital HUD background with scanlines */
+    background: 
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.05) 0px, rgba(255, 255, 255, 0.05) 1px, transparent 1px, transparent 4px),
+        rgba(15, 15, 20, 0.85);
+    padding: 40px 50px;
+    border-radius: 0;
+    border: 3px solid rgba(255, 165, 0, 0.4);
+    box-shadow: 
+        0 0 0 2px rgba(255, 165, 0, 0.2),
+        0 0 60px rgba(0, 0, 0, 0.9),
+        inset 0 0 60px rgba(0, 0, 0, 0.6);
+    min-width: 450px;
+    max-width: 500px;
+    backdrop-filter: blur(10px);
+    box-sizing: border-box;
+    /* Tech-notched corners */
+    clip-path: polygon(
+        0 20px, 20px 0, 
+        calc(100% - 20px) 0, 100% 20px, 
+        100% calc(100% - 20px), calc(100% - 20px) 100%, 
+        20px 100%, 0 calc(100% - 20px)
+    );
+    position: relative;
+}
+
+/* L-Shaped HUD Brackets */
+.pause-panel::before,
+.pause-panel::after {
+    content: '';
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.pause-panel::before {
+    top: -3px;
+    left: -3px;
+    border-top: 8px solid #ffa500;
+    border-left: 8px solid #ffa500;
+}
+
+.pause-panel::after {
+    bottom: -3px;
+    right: -3px;
+    border-bottom: 8px solid #ffa500;
+    border-right: 8px solid #ffa500;
 }
 
 #pause-menu h2 {
-    color: #ffcc00;
+    color: #fff;
     margin-top: 0;
+    margin-bottom: 30px;
     text-align: center;
-    font-size: 2em;
+    font-size: 2.5em;
+    font-weight: 900;
+    font-family: 'Arial Black', 'Franklin Gothic Bold', 'Impact', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 8px;
+    text-shadow: 
+        4px 4px 0px #000,
+        5px 5px 0px #000,
+        6px 6px 0px #000,
+        7px 7px 0px #000,
+        8px 8px 6px rgba(0, 0, 0, 0.8),
+        0 0 20px rgba(255, 140, 0, 0.6);
+    position: relative;
 }
 
 .pause-buttons {
-    margin: 20px 0;
+    margin: 30px 0;
 }
 
 .pause-buttons button {
     width: 100%;
-    background: #00cc00;
+    background: linear-gradient(135deg, #00cc00 0%, #00ff00 100%);
     color: #000;
-    border: none;
-    padding: 15px;
-    font-size: 1.2em;
+    border: 3px solid #00ff00;
+    padding: 18px;
+    font-size: 1.3em;
     font-weight: 900;
+    font-family: 'Arial Black', 'Franklin Gothic Bold', 'Impact', sans-serif;
     cursor: pointer;
     pointer-events: auto;
     margin-bottom: 15px;
     text-transform: uppercase;
+    letter-spacing: 3px;
     z-index: 200;
     position: relative;
+    border-radius: 0;
+    box-shadow: 
+        0 0 20px rgba(0, 255, 0, 0.5),
+        inset 0 0 15px rgba(255, 255, 255, 0.2);
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    /* Slanted tech button shape */
+    clip-path: polygon(0 0, 100% 0, 95% 100%, 5% 100%);
+    transition: all 0.3s ease;
 }
 
 .pause-buttons button:hover {
-    background: #00ff00;
+    background: linear-gradient(135deg, #00ff00 0%, #66ff66 100%);
+    box-shadow: 
+        0 0 40px rgba(0, 255, 0, 0.8),
+        inset 0 0 20px rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px) scale(1.02);
 }
 
+.pause-buttons button:active {
+    transform: translateY(0) scale(0.98);
+    box-shadow: 
+        0 0 15px rgba(0, 255, 0, 0.5),
+        inset 0 0 10px rgba(255, 255, 255, 0.2);
+}
+
+/* Resume button - Green (first button) */
+.pause-buttons button:nth-child(1) {
+    background: linear-gradient(135deg, #00cc00 0%, #00ff00 100%);
+    border-color: #00ff00;
+    box-shadow: 
+        0 0 20px rgba(0, 255, 0, 0.5),
+        inset 0 0 15px rgba(255, 255, 255, 0.2);
+}
+
+.pause-buttons button:nth-child(1):hover {
+    background: linear-gradient(135deg, #00ff00 0%, #66ff66 100%);
+    box-shadow: 
+        0 0 40px rgba(0, 255, 0, 0.8),
+        inset 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+/* Restart button - Yellow/Orange (second button) */
 .pause-buttons button:nth-child(2) {
-    background: #ffcc00;
+    background: linear-gradient(135deg, #ffcc00 0%, #ffaa00 100%);
+    border-color: #ffcc00;
+    box-shadow: 
+        0 0 20px rgba(255, 204, 0, 0.5),
+        inset 0 0 15px rgba(255, 255, 255, 0.2);
 }
 
 .pause-buttons button:nth-child(2):hover {
-    background: #ffe066;
+    background: linear-gradient(135deg, #ffdd00 0%, #ffcc00 100%);
+    box-shadow: 
+        0 0 40px rgba(255, 204, 0, 0.8),
+        inset 0 0 20px rgba(255, 255, 255, 0.3);
 }
 
+/* Main Menu button - Orange/Red (third button) */
 .pause-buttons button:nth-child(3) {
-    background: #ff6600;
+    background: linear-gradient(135deg, #ff6600 0%, #ff8833 100%);
+    border-color: #ff6600;
     margin-bottom: 20px;
+    box-shadow: 
+        0 0 20px rgba(255, 102, 0, 0.5),
+        inset 0 0 15px rgba(255, 255, 255, 0.2);
 }
 
 .pause-buttons button:nth-child(3):hover {
-    background: #ff8833;
+    background: linear-gradient(135deg, #ff8833 0%, #ffaa66 100%);
+    box-shadow: 
+        0 0 40px rgba(255, 102, 0, 0.8),
+        inset 0 0 20px rgba(255, 255, 255, 0.3);
 }
 
 .debug-options {
-    border-top: 1px solid #333;
-    padding-top: 20px;
+    border-top: 2px solid rgba(255, 165, 0, 0.3);
+    padding-top: 25px;
+    margin-top: 10px;
 }
 
 .debug-options h3 {
     color: #00ccff;
-    margin: 0 0 15px 0;
+    margin: 0 0 20px 0;
+    font-size: 1.5em;
+    font-weight: 900;
+    font-family: 'Arial Black', 'Franklin Gothic Bold', 'Impact', sans-serif;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    text-shadow: 
+        2px 2px 0px #000,
+        3px 3px 0px #000,
+        0 0 15px rgba(0, 204, 255, 0.5);
 }
 
 .debug-option {
     display: flex;
     align-items: center;
-    margin: 10px 0;
+    justify-content: space-between;
+    margin: 18px 0;
     color: #fff;
     pointer-events: auto;
     cursor: pointer;
-}
-
-.debug-option input[type="checkbox"] {
-    margin-right: 10px;
-    transform: scale(1.2);
-    pointer-events: auto;
-    cursor: pointer;
+    font-size: 1.1em;
+    font-weight: bold;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    font-family: 'Arial', sans-serif;
+    padding: 8px 0;
 }
 
 .debug-option span {
     pointer-events: none;
+    flex: 1;
+    margin-right: 20px;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
 }
 
+/* Hide default checkbox */
+.debug-option input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    width: 0;
+    height: 0;
+    pointer-events: none;
+}
 
+/* Custom Toggle Switch */
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 70px;
+    height: 34px;
+    flex-shrink: 0;
+    pointer-events: auto;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    cursor: pointer;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background-color: rgba(40, 40, 40, 0.9);
+    border: 3px solid rgba(255, 165, 0, 0.4);
+    transition: all 0.3s ease;
+    border-radius: 0;
+    box-shadow: 
+        inset 0 0 20px rgba(0, 0, 0, 0.8),
+        0 0 10px rgba(0, 0, 0, 0.5);
+}
+
+.toggle-slider:before {
+    position: absolute;
+    content: "";
+    height: 24px;
+    width: 24px;
+    left: 4px;
+    bottom: 2px;
+    background: linear-gradient(135deg, #666 0%, #888 100%);
+    border: 2px solid #444;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 
+        0 2px 4px rgba(0, 0, 0, 0.8),
+        inset 0 1px 2px rgba(255, 255, 255, 0.2);
+}
+
+/* Toggle ON state */
+input:checked + .toggle-slider {
+    background-color: rgba(0, 204, 0, 0.3);
+    border-color: #00ff00;
+    box-shadow: 
+        inset 0 0 20px rgba(0, 255, 0, 0.3),
+        0 0 20px rgba(0, 255, 0, 0.6),
+        0 0 30px rgba(0, 255, 0, 0.4);
+}
+
+input:checked + .toggle-slider:before {
+    transform: translateX(36px);
+    background: linear-gradient(135deg, #00ff00 0%, #66ff66 100%);
+    border-color: #00ff00;
+    box-shadow: 
+        0 2px 6px rgba(0, 255, 0, 0.8),
+        inset 0 1px 2px rgba(255, 255, 255, 0.3),
+        0 0 15px rgba(0, 255, 0, 0.6);
+}
+
+/* Hover effects */
+.toggle-switch:hover .toggle-slider {
+    border-color: rgba(255, 165, 0, 0.7);
+    box-shadow: 
+        inset 0 0 20px rgba(0, 0, 0, 0.8),
+        0 0 15px rgba(255, 165, 0, 0.4);
+}
+
+.toggle-switch:hover input:checked + .toggle-slider {
+    border-color: #66ff66;
+    box-shadow: 
+        inset 0 0 20px rgba(0, 255, 0, 0.3),
+        0 0 25px rgba(0, 255, 0, 0.8),
+        0 0 35px rgba(0, 255, 0, 0.5);
+}
+
+/* Active/pressed state */
+.toggle-switch:active .toggle-slider:before {
+    transform: translateX(4px) scale(0.9);
+}
+
+.toggle-switch:active input:checked + .toggle-slider:before {
+    transform: translateX(32px) scale(0.9);
+}
+
+/* Responsive Design */
+@media (max-width: 600px) {
+    .pause-panel {
+        min-width: 90%;
+        max-width: 90%;
+        padding: 30px 35px;
+    }
+
+    #pause-menu h2 {
+        font-size: 2em;
+        letter-spacing: 4px;
+    }
+
+    .pause-buttons button {
+        font-size: 1.1em;
+        padding: 15px;
+    }
+
+    .debug-options h3 {
+        font-size: 1.2em;
+        letter-spacing: 2px;
+    }
+
+    .debug-option {
+        font-size: 1em;
+    }
+
+    .toggle-switch {
+        width: 60px;
+        height: 30px;
+    }
+
+    .toggle-slider:before {
+        height: 20px;
+        width: 20px;
+    }
+
+    input:checked + .toggle-slider:before {
+        transform: translateX(30px);
+    }
+}

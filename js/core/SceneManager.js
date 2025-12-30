@@ -25,7 +25,7 @@ export class SceneManager {
         // Initialize scene
         this.scene = new THREE.Scene();
         this.scene.background = new THREE.Color(0x101010);
-        this.scene.fog = new THREE.Fog(0x101010, 15, 50);
+        this.scene.fog = new THREE.Fog(0x101010, 25, 100);
 
         // Initialize camera - use pixelation resolution aspect ratio
         const pixelAspect = CONFIG.pixelation.width / CONFIG.pixelation.height;
@@ -44,16 +44,16 @@ export class SceneManager {
 
     setupLights() {
         // Lights - Balanced brightness
-        const amb = new THREE.HemisphereLight(0xffffff, 0x666666, 1.8);
+        const amb = new THREE.HemisphereLight(0xffffff, 0x666666, 2.5);
         this.scene.add(amb);
         this.lights.push(amb);
 
         // Additional ambient for balanced fill
-        const amb2 = new THREE.AmbientLight(0xffffff, 0.8);
+        const amb2 = new THREE.AmbientLight(0xffffff, 1.2);
         this.scene.add(amb2);
         this.lights.push(amb2);
 
-        const dir = new THREE.DirectionalLight(0xffffff, 3.5);
+        const dir = new THREE.DirectionalLight(0xffffff, 4.5);
         dir.position.set(8, 20, 8);
         dir.castShadow = true;
         dir.shadow.mapSize.set(2048, 2048);
@@ -61,34 +61,34 @@ export class SceneManager {
         this.lights.push(dir);
 
         // Secondary directional for balanced lighting
-        const dir2 = new THREE.DirectionalLight(0xccddff, 2.0);
+        const dir2 = new THREE.DirectionalLight(0xccddff, 3.0);
         dir2.position.set(-8, 18, -8);
         this.scene.add(dir2);
         this.lights.push(dir2);
 
         // Additional fill lights - balanced color variation
-        const fill1 = new THREE.DirectionalLight(0x6688ff, 2.0);
+        const fill1 = new THREE.DirectionalLight(0x6688ff, 3.0);
         fill1.position.set(-10, 12, 10);
         this.scene.add(fill1);
         this.lights.push(fill1);
 
-        const fill2 = new THREE.DirectionalLight(0xff8866, 2.0);
+        const fill2 = new THREE.DirectionalLight(0xff8866, 3.0);
         fill2.position.set(10, 12, -10);
         this.scene.add(fill2);
         this.lights.push(fill2);
 
-        const fill3 = new THREE.DirectionalLight(0x88ff88, 1.5);
+        const fill3 = new THREE.DirectionalLight(0x88ff88, 2.2);
         fill3.position.set(0, 15, 12);
         this.scene.add(fill3);
         this.lights.push(fill3);
 
-        const fill4 = new THREE.DirectionalLight(0xff88ff, 1.5);
+        const fill4 = new THREE.DirectionalLight(0xff88ff, 2.2);
         fill4.position.set(0, 15, -12);
         this.scene.add(fill4);
         this.lights.push(fill4);
 
         // Rim Lights - Balanced intensity
-        const rim1 = new THREE.SpotLight(0x6688ff, 4.0);
+        const rim1 = new THREE.SpotLight(0x6688ff, 5.0);
         rim1.position.set(-15, 8, 0);
         rim1.angle = Math.PI / 4;
         rim1.penumbra = 0.5;
@@ -96,7 +96,7 @@ export class SceneManager {
         this.scene.add(rim1);
         this.lights.push(rim1);
 
-        const rim2 = new THREE.SpotLight(0xff8866, 4.0);
+        const rim2 = new THREE.SpotLight(0xff8866, 5.0);
         rim2.position.set(15, 8, 0);
         rim2.angle = Math.PI / 4;
         rim2.penumbra = 0.5;
@@ -104,7 +104,7 @@ export class SceneManager {
         this.scene.add(rim2);
         this.lights.push(rim2);
 
-        const rim3 = new THREE.SpotLight(0x88ff88, 4.0);
+        const rim3 = new THREE.SpotLight(0x88ff88, 5.0);
         rim3.position.set(0, 8, -15);
         rim3.angle = Math.PI / 4;
         rim3.penumbra = 0.5;
@@ -112,7 +112,7 @@ export class SceneManager {
         this.scene.add(rim3);
         this.lights.push(rim3);
 
-        const rim4 = new THREE.SpotLight(0xff88ff, 4.0);
+        const rim4 = new THREE.SpotLight(0xff88ff, 5.0);
         rim4.position.set(0, 8, 15);
         rim4.angle = Math.PI / 4;
         rim4.penumbra = 0.5;
@@ -145,5 +145,6 @@ export class SceneManager {
         this.renderer.setSize(window.innerWidth, window.innerHeight);
     }
 }
+
 
 

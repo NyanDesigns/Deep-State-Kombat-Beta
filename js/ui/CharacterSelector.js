@@ -737,10 +737,17 @@ export class CharacterSelector {
 
             // Update UI
             this.updateCharacterCardSelection(character.id, availableSlot);
-            // Remove focus indicator when selected (selection overrides focus)
-            document.querySelectorAll(`.character-card.focused-${availableSlot}`).forEach(card => {
-                card.classList.remove(`focused-${availableSlot}`);
-            });
+            // Remove focus indicator after transition animation completes (keep visible during transition)
+            setTimeout(() => {
+                document.querySelectorAll(`.character-card.focused-${availableSlot}`).forEach(card => {
+                    card.classList.remove(`focused-${availableSlot}`);
+                });
+                // Also remove focused-both if this card had it
+                const selectedCard = document.querySelector(`.character-card[data-character-id="${character.id}"]`);
+                if (selectedCard) {
+                    selectedCard.classList.remove(`focused-both`);
+                }
+            }, 600);
             this.updatePlayerPreview(availableSlot, character);
             
             // Update background preview and info panel to show selected character
@@ -772,10 +779,56 @@ export class CharacterSelector {
             card.classList.remove(`selected-${playerSlot}`);
         });
 
+        // Remove any existing transition classes for this player (clean up any ongoing transitions)
+        document.querySelectorAll(`.character-card.transitioning-to-selected-${playerSlot}`).forEach(card => {
+            card.classList.remove(`transitioning-to-selected-${playerSlot}`);
+        });
+
         // Add selection to current character
         const card = document.querySelector(`.character-card[data-character-id="${characterId}"]`);
         if (card) {
-            card.classList.add(`selected-${playerSlot}`);
+            // Remove any existing selected class to ensure clean transition
+            card.classList.remove(`selected-${playerSlot}`);
+            
+            // Ensure the card has focus state if it doesn't already (for smooth transition)
+            // This ensures the animation starts from a visible state
+            const hasFocus = card.classList.contains(`focused-${playerSlot}`) || 
+                           card.classList.contains('focused-both');
+            if (!hasFocus) {
+                // Temporarily add focus to ensure smooth transition
+                card.classList.add(`focused-${playerSlot}`);
+                // Force a reflow to apply the focus styles
+                void card.offsetWidth;
+            }
+            
+            // Remove any hover effects that might interfere
+            card.style.pointerEvents = 'none';
+            
+            // Force a reflow to ensure the transition starts from the current state
+            void card.offsetWidth;
+            
+            // First add the transition class to trigger the animation
+            card.classList.add(`transitioning-to-selected-${playerSlot}`);
+            
+            // Re-enable pointer events after a brief moment
+            setTimeout(() => {
+                card.style.pointerEvents = '';
+            }, 50);
+            
+            console.log(`Transition animation started for ${characterId} (${playerSlot}), hasFocus: ${hasFocus}`);
+            
+            // After animation completes (600ms), remove transition class and add selected class
+            setTimeout(() => {
+                if (card.classList.contains(`transitioning-to-selected-${playerSlot}`)) {
+                    card.classList.remove(`transitioning-to-selected-${playerSlot}`);
+                    card.classList.add(`selected-${playerSlot}`);
+                    // Remove temporary focus if we added it
+                    if (!hasFocus) {
+                        card.classList.remove(`focused-${playerSlot}`);
+                    }
+                    console.log(`Transition completed for ${characterId} (${playerSlot})`);
+                }
+            }, 600);
         }
     }
 

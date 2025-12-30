@@ -1,7 +1,7 @@
 // Game configuration constants
 export const CONFIG = {
-    cam: { dist: 8.5, height: 1.8, fov: 45 }, // Zoomed in for better visibility
-    pixelation: { width: 640, height: 480 }, // Increased resolution for better clarity
+    cam: { dist: 7.5, height: 2.0, fov: 45 }, // Restore camera framing; sizing handled via model scale instead
+    pixelation: { width: 1280, height: 720 }, // Higher internal render resolution to reduce pixelation
     combat: {
         hp: 100,
         stamina: 100,
@@ -37,4 +37,3 @@ export const DEFAULT_COMBAT_STATS = {
         window: [0.4, 0.8]
     }
 };
-

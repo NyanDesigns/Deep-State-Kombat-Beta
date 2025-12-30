@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
 import { CONFIG } from '../config.js';
 import { BoneDiscovery } from '../utils/BoneDiscovery.js';
 import { HitboxSystem } from '../utils/HitboxSystem.js';
@@ -17,20 +18,33 @@ export class Fighter {
         this.maxSt = this.st;
         this.moveSpeed = characterConfig?.stats?.moveSpeed || 4.0;
 
-        // Setup Mesh
-        this.mesh = gltf.scene.clone(); // Clone to allow multiple instances
+        // Setup Mesh - Use SkeletonUtils for correct skinning/animation cloning
+        this.mesh = SkeletonUtils.clone(gltf.scene);
         scene.add(this.mesh);
         this.mesh.position.copy(pos);
 
+        // Ensure matrices are updated before scale calculation
+        this.mesh.updateMatrixWorld(true);
+
         // Normalize Scale
         const box = new THREE.Box3().setFromObject(this.mesh);
-        const h = box.max.y - box.min.y;
-        const targetHeight = this.characterConfig?.scale || 1.7;
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        const h = size.y;
+
+        const configuredHeight = this.characterConfig?.scale;
+        const targetHeight = Math.max(configuredHeight || 4.0, 4.0); // Enforce a larger minimum visual height
         const scale = targetHeight / (h || 1);
         this.mesh.scale.setScalar(scale);
+
+        // Initial rotation to face the center
+        this.mesh.rotation.y = id === 'p1' ? Math.PI / 2 : -Math.PI / 2;
+
+        // Recalculate collision bounds using scaled size
         box.setFromObject(this.mesh);
-        const size = box.getSize(new THREE.Vector3());
-        this.collisionRadius = Math.max(size.x, size.z) * 0.6 + 0.35;
+        box.getSize(size);
+
+        this.collisionRadius = Math.max(size.x, size.z) * 0.5 + 0.3;
         if (!isFinite(this.collisionRadius) || this.collisionRadius < 0.5) {
             this.collisionRadius = 1.2;
         }
@@ -78,6 +92,7 @@ export class Fighter {
         this.hitRegistered = false;
         this.stunTime = 0;
         this.aiTimer = 0;
+        this.aiMoveDecision = 'chase'; // AI movement decision: 'chase', 'retreat', or 'attack'
         this.moveDirection = 0; // 1 = forward, -1 = backward, 0 = none
 
         // Hitbox system - using spheres with character-specific sizes
@@ -111,6 +126,13 @@ export class Fighter {
         this.collisionStart = new THREE.Vector3();
         this.collisionEnd = new THREE.Vector3();
         this.updateCollisionCapsule();
+
+        // Debug visualization
+        this.hitboxVisualization = null;
+        this.collisionBoxVisualization = null;
+        this.showHitboxes = false;
+        this.showCollisionBox = false;
+        this.initVisualizations(scene);
     }
 
     loadAnimations(clips = []) {
@@ -132,6 +154,179 @@ export class Fighter {
     initHitboxes() {
         // Spheres are already initialized in constructor
         // This method can be used for additional setup if needed
+    }
+
+    initVisualizations(scene) {
+        // Hitbox visualization group
+        this.hitboxVisualization = new THREE.Group();
+        scene.add(this.hitboxVisualization);
+        this.hitboxVisualization.visible = false;
+
+        // Hurt sphere visualizations (head and torso)
+        const headHelper = new THREE.Mesh(
+            new THREE.SphereGeometry(this.hurtSpheres.head.radius, 16, 16),
+            new THREE.MeshBasicMaterial({ 
+                color: 0xff0000, 
+                wireframe: true, 
+                transparent: true, 
+                opacity: 0.5 
+            })
+        );
+        headHelper.name = 'headHurtSphere';
+        this.hitboxVisualization.add(headHelper);
+
+        const torsoHelper = new THREE.Mesh(
+            new THREE.SphereGeometry(this.hurtSpheres.torso.radius, 16, 16),
+            new THREE.MeshBasicMaterial({ 
+                color: 0xff6600, 
+                wireframe: true, 
+                transparent: true, 
+                opacity: 0.5 
+            })
+        );
+        torsoHelper.name = 'torsoHurtSphere';
+        this.hitboxVisualization.add(torsoHelper);
+
+        // Attack sphere visualizations (hands and legs)
+        // Hands
+        for (let i = 0; i < 4; i++) {
+            const handHelper = new THREE.Mesh(
+                new THREE.SphereGeometry(this.attackSpheres.hands[i].radius, 16, 16),
+                new THREE.MeshBasicMaterial({ 
+                    color: 0x00ff00, 
+                    wireframe: true, 
+                    transparent: true, 
+                    opacity: 0.6 
+                })
+            );
+            handHelper.name = `handAttackSphere_${i}`;
+            this.hitboxVisualization.add(handHelper);
+        }
+
+        // Legs
+        for (let i = 0; i < 4; i++) {
+            const legHelper = new THREE.Mesh(
+                new THREE.SphereGeometry(this.attackSpheres.legs[i].radius, 16, 16),
+                new THREE.MeshBasicMaterial({ 
+                    color: 0x0000ff, 
+                    wireframe: true, 
+                    transparent: true, 
+                    opacity: 0.6 
+                })
+            );
+            legHelper.name = `legAttackSphere_${i}`;
+            this.hitboxVisualization.add(legHelper);
+        }
+
+        // Collision box visualization (cylinder representing the collision capsule)
+        this.collisionBoxVisualization = new THREE.Group();
+        scene.add(this.collisionBoxVisualization);
+        this.collisionBoxVisualization.visible = false;
+
+        // Calculate visualization radius (much thinner than actual collision radius)
+        // Use the same bounding box calculation as collisionRadius but without padding and scaled down
+        const box = new THREE.Box3().setFromObject(this.mesh);
+        const size = new THREE.Vector3();
+        box.getSize(size);
+        // Use 55% of the base radius (without the +0.3 padding) to make it much thinner
+        const baseRadius = Math.max(size.x, size.z) * 0.5;
+        const visualizationRadius = baseRadius * 0.55;
+
+        // Create cylinder visualization for collision capsule
+        const collisionMaterial = new THREE.MeshBasicMaterial({ 
+            color: 0xffff00, 
+            wireframe: true, 
+            transparent: true, 
+            opacity: 0.5 
+        });
+
+        // The cylinder will be created and updated dynamically based on collisionHeight
+        const collisionCylinder = new THREE.Mesh(
+            new THREE.CylinderGeometry(visualizationRadius, visualizationRadius, this.collisionHeight, 16),
+            collisionMaterial
+        );
+        collisionCylinder.name = 'collisionCylinder';
+        this.collisionBoxVisualization.add(collisionCylinder);
+    }
+
+    updateHitboxVisualization() {
+        if (!this.hitboxVisualization || !this.showHitboxes) return;
+
+        // Update hurt spheres
+        const headHelper = this.hitboxVisualization.getObjectByName('headHurtSphere');
+        const torsoHelper = this.hitboxVisualization.getObjectByName('torsoHurtSphere');
+        
+        if (headHelper) {
+            headHelper.position.copy(this.hurtSpheres.head.center);
+        }
+        if (torsoHelper) {
+            torsoHelper.position.copy(this.hurtSpheres.torso.center);
+        }
+
+        // Update attack spheres - hands
+        for (let i = 0; i < 4; i++) {
+            const handHelper = this.hitboxVisualization.getObjectByName(`handAttackSphere_${i}`);
+            if (handHelper) {
+                const sphere = this.attackSpheres.hands[i];
+                // Only show if sphere is active (not at Infinity)
+                if (sphere.center.x !== Infinity && 
+                    sphere.center.y !== Infinity && 
+                    sphere.center.z !== Infinity) {
+                    handHelper.position.copy(sphere.center);
+                    handHelper.visible = true;
+                } else {
+                    handHelper.visible = false;
+                }
+            }
+        }
+
+        // Update attack spheres - legs
+        for (let i = 0; i < 4; i++) {
+            const legHelper = this.hitboxVisualization.getObjectByName(`legAttackSphere_${i}`);
+            if (legHelper) {
+                const sphere = this.attackSpheres.legs[i];
+                // Only show if sphere is active (not at Infinity)
+                if (sphere.center.x !== Infinity && 
+                    sphere.center.y !== Infinity && 
+                    sphere.center.z !== Infinity) {
+                    legHelper.position.copy(sphere.center);
+                    legHelper.visible = true;
+                } else {
+                    legHelper.visible = false;
+                }
+            }
+        }
+    }
+
+    updateCollisionBoxVisualization() {
+        if (!this.collisionBoxVisualization || !this.showCollisionBox) return;
+
+        this.updateCollisionCapsule();
+        
+        const cylinder = this.collisionBoxVisualization.getObjectByName('collisionCylinder');
+
+        if (cylinder) {
+            const midY = (this.collisionStart.y + this.collisionEnd.y) * 0.5;
+            cylinder.position.y = midY;
+        }
+
+        // Position the whole group at the mesh's x/z position
+        this.collisionBoxVisualization.position.x = this.mesh.position.x;
+        this.collisionBoxVisualization.position.z = this.mesh.position.z;
+    }
+
+    setHitboxVisibility(visible) {
+        this.showHitboxes = visible;
+        if (this.hitboxVisualization) {
+            this.hitboxVisualization.visible = visible;
+        }
+    }
+
+    setCollisionBoxVisibility(visible) {
+        this.showCollisionBox = visible;
+        if (this.collisionBoxVisualization) {
+            this.collisionBoxVisualization.visible = visible;
+        }
     }
 
     updateCollisionCapsule() {
@@ -248,6 +443,10 @@ export class Fighter {
         } catch (e) {
             console.error('Error updating hitboxes:', e);
         }
+
+        // Update visualizations
+        this.updateHitboxVisualization();
+        this.updateCollisionBoxVisualization();
 
         if (this.state === 'STUN') {
             this.stunTime -= dt;
@@ -465,22 +664,45 @@ export class Fighter {
     }
 
     updateAI(dt, opp) {
-        this.aiTimer -= dt;
-        if (this.aiTimer > 0) return;
-
         const aiConfig = this.characterConfig?.ai || {};
         const aggression = aiConfig.aggression ?? 0.5;
         const retreatDistance = aiConfig.retreatDistance ?? 2.0;
         const attackChance = aiConfig.attackChance ?? 0.5;
         const dist = this.mesh.position.distanceTo(opp.mesh.position);
 
-        if (dist < retreatDistance && Math.random() > aggression) {
+        // Update decision timer (only for decision-making, not movement)
+        this.aiTimer -= dt;
+        const shouldMakeDecision = this.aiTimer <= 0;
+        
+        if (shouldMakeDecision) {
+            // Make new decision periodically
+            this.aiTimer = Math.random() * 0.3 + 0.1; // Faster decision updates
+            
+            // Store current decision and execute attacks immediately
+            if (dist < retreatDistance && Math.random() > aggression) {
+                this.aiMoveDecision = 'retreat';
+            } else if (dist < 2.8 && Math.random() < attackChance && this.state === 'IDLE') {
+                // Attack decision - execute immediately
+                this.aiMoveDecision = 'attack';
+                this.attack(Math.random() > 0.6 ? 'heavy' : 'light');
+                return; // Don't move this frame if attacking
+            } else {
+                this.aiMoveDecision = 'chase';
+            }
+        }
+
+        // Execute movement continuously based on current decision (skip if attacking)
+        if (this.state === 'ATTACK' || this.state === 'STUN') {
+            return; // Don't move during attack or stun
+        }
+
+        if (this.aiMoveDecision === 'retreat') {
+            // Retreat - move away from opponent
             const dir = new THREE.Vector3().subVectors(this.mesh.position, opp.mesh.position).normalize();
             this.mesh.position.addScaledVector(dir, this.moveSpeed * dt);
             this.play('walk', this.animationFade);
-        } else if (dist < 2.8 && Math.random() < attackChance) {
-            this.attack(Math.random() > 0.6 ? 'heavy' : 'light');
         } else {
+            // Chase - move towards opponent (default, or when attack decision is active but can't attack yet)
             const dir = new THREE.Vector3().subVectors(opp.mesh.position, this.mesh.position).normalize();
             this.mesh.position.addScaledVector(dir, this.moveSpeed * dt);
             this.play('walk', this.animationFade);
@@ -488,8 +710,6 @@ export class Fighter {
 
         // Keep within arena bounds
         if (this.mesh.position.length() > 20) this.mesh.position.setLength(20);
-
-        this.aiTimer = Math.random() * 0.5 + 0.2;
     }
 
     updateUI() {

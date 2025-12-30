@@ -351,7 +351,7 @@ export class PreviewScene {
         const headTarget = new THREE.Vector3(0, 1.0, 0); // Lower anchor to push the model down in frame while keeping face centered
         const moveToTarget = headTarget.clone().sub(headPos);
         model.position.add(moveToTarget);
-        const extraDownOffset = -8.0; // push model even further down in frame to keep legs out while zoomed in
+        const extraDownOffset = -9.5; // push model further down in frame while keeping extreme zoom
         model.position.y += extraDownOffset;
         model.updateMatrixWorld(true);
 
@@ -378,10 +378,10 @@ export class PreviewScene {
         const fovY = THREE.MathUtils.degToRad(cam.fov || 36);
         const aspect = cam.aspect || 1;
         const fovX = 2 * Math.atan(Math.tan(fovY / 2) * aspect);
-        const fitMargin = 0.2; // maximum zoom-in; nearly edge-to-edge
+        const fitMargin = 0.15; // slightly zoomed out from edge-to-edge
         const distV = (effectiveSphere.radius * fitMargin) / Math.tan(fovY / 2);
         const distH = (effectiveSphere.radius * fitMargin) / Math.tan(fovX / 2);
-        const fitDist = Math.max(distV, distH, (cam.near || 0.1) * 3.0); // avoid near-plane clipping
+        const fitDist = Math.max(distV, distH, (cam.near || 0.1) * 3.5); // avoid near-plane clipping
 
         // Position camera in front of the model, looking at the head target
         const viewDir = new THREE.Vector3(0, 0, 1); // camera sits in +Z, looks toward -Z
@@ -470,18 +470,19 @@ export class PreviewScene {
         // Set character to face front (no rotation)
         model.rotation.y = 0;
 
-        // Setup animation mixer
+        // Setup animation mixer and play idle (5x slower)
         miniScene.mixer = new THREE.AnimationMixer(model);
-
-        // Play idle animation
         if (gltf.animations && gltf.animations.length > 0) {
-            const idleClip = gltf.animations.find(clip =>
-                clip.name.toLowerCase().includes('idle') ||
-                clip.name.toLowerCase().includes('stand')
-            ) || gltf.animations[0];
-
+            const clips = gltf.animations;
+            const pickClip = keywords =>
+                clips.find(clip => {
+                    const name = (clip.name || '').toLowerCase();
+                    return keywords.some(k => name.includes(k));
+                });
+            const idleClip = pickClip(['idle', 'stand']) || clips[0];
             if (idleClip) {
                 const action = miniScene.mixer.clipAction(idleClip);
+                action.timeScale = 0.2; // 5x slower
                 action.play();
             }
         }
@@ -574,19 +575,20 @@ export class PreviewScene {
         preview.scene.add(model);
         preview.model = model;
 
-        // Setup animation mixer
+        // Setup animation mixer and play idle (5x slower)
         preview.mixer = new THREE.AnimationMixer(model);
-
-        // Play idle animation if available
         if (gltf.animations && gltf.animations.length > 0) {
-            const idleClip = gltf.animations.find(clip =>
-                clip.name.toLowerCase().includes('idle') ||
-                clip.name.toLowerCase().includes('stand')
-            ) || gltf.animations[0];
-
+            const clips = gltf.animations;
+            const pickClip = keywords =>
+                clips.find(clip => {
+                    const name = (clip.name || '').toLowerCase();
+                    return keywords.some(k => name.includes(k));
+                });
+            const idleClip = pickClip(['idle', 'stand']) || clips[0];
             if (idleClip) {
-                const idleAction = preview.mixer.clipAction(idleClip);
-                idleAction.play();
+                const action = preview.mixer.clipAction(idleClip);
+                action.timeScale = 0.2; // 5x slower
+                action.play();
             }
         }
 

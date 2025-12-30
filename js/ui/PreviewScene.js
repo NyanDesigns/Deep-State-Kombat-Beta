@@ -215,7 +215,10 @@ export class PreviewScene {
             mixer: null,
             model: null,
             clock: new THREE.Clock(),
-            lastUpdate: 0 // For throttling
+            lastUpdate: 0, // For throttling
+            isPaused: false,
+            pausedTime: 0,
+            currentAction: null // Store the current animation action
         };
 
         this.miniScenes[cellId] = miniSceneData;
@@ -450,6 +453,7 @@ export class PreviewScene {
                 const action = miniScene.mixer.clipAction(idleClip);
                 action.timeScale = 0.2; // 5x slower
                 action.play();
+                miniScene.currentAction = action; // Store the action for pause/resume
             }
         }
 
@@ -472,6 +476,53 @@ export class PreviewScene {
     }
 
     /**
+     * Pause animation in a mini-scene, preserving animation state
+     * @param {string} cellId - Cell identifier
+     */
+    pauseMiniSceneAnimation(cellId) {
+        const miniScene = this.miniScenes[cellId];
+        if (!miniScene || !miniScene.mixer || miniScene.isPaused) return;
+
+        // Store current animation time
+        if (miniScene.currentAction) {
+            miniScene.pausedTime = miniScene.currentAction.time;
+        } else if (miniScene.mixer && miniScene.mixer._actions.length > 0) {
+            // Fallback: get time from first action if currentAction not set
+            const action = miniScene.mixer._actions[0];
+            if (action) {
+                miniScene.pausedTime = action.time;
+            }
+        }
+
+        miniScene.isPaused = true;
+    }
+
+    /**
+     * Resume animation in a mini-scene from stored position
+     * @param {string} cellId - Cell identifier
+     */
+    resumeMiniSceneAnimation(cellId) {
+        const miniScene = this.miniScenes[cellId];
+        if (!miniScene || !miniScene.mixer || !miniScene.isPaused) return;
+
+        // Restore animation time
+        if (miniScene.currentAction) {
+            miniScene.currentAction.time = miniScene.pausedTime;
+        } else if (miniScene.mixer && miniScene.mixer._actions.length > 0) {
+            // Fallback: restore time to first action
+            const action = miniScene.mixer._actions[0];
+            if (action) {
+                action.time = miniScene.pausedTime;
+            }
+        }
+
+        // Reset clock to prevent delta jump
+        miniScene.clock.start();
+        miniScene.lastUpdate = Date.now();
+        miniScene.isPaused = false;
+    }
+
+    /**
      * Clear mini-scene model
      * @param {string} cellId - Cell identifier
      */
@@ -481,6 +532,9 @@ export class PreviewScene {
             miniScene.scene.remove(miniScene.model);
             miniScene.model = null;
             miniScene.mixer = null;
+            miniScene.currentAction = null;
+            miniScene.isPaused = false;
+            miniScene.pausedTime = 0;
         }
     }
 

@@ -9,7 +9,7 @@ export class CharacterConfig {
             id: { type: 'string', required: true },
             name: { type: 'string', required: true },
             modelPath: { type: 'string', required: true },
-            thumbnail: { type: 'string', required: false },
+            thumbnail: { type: ['string', 'object'], required: false },
             stats: {
                 type: 'object',
                 required: false,

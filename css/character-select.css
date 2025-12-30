@@ -259,8 +259,9 @@
     object-fit: cover;
     object-position: center center;
     z-index: 1;
-    transition: opacity 0.5s ease-in-out;
+    transition: opacity 0.5s ease-in-out, filter 0.3s ease;
     opacity: 0;
+    filter: grayscale(100%);
 }
 
 /* Zoom into face for characters without 3D models (using T.png) */
@@ -292,9 +293,19 @@
     transform: translateY(-5px) scale(1.05);
 }
 
-/* Add fire glow effect to hovered card background */
-.character-card:hover .character-card-background {
-    filter: brightness(1.2) saturate(1.3);
+/* Remove grayscale on hover/focus and add fire glow effect */
+.character-card:hover .character-card-background,
+.character-card.focused-p1 .character-card-background,
+.character-card.focused-p2 .character-card-background,
+.character-card.focused-both .character-card-background {
+    filter: grayscale(0%) brightness(1.2) saturate(1.3);
+}
+
+.character-card:hover .character-card-canvas,
+.character-card.focused-p1 .character-card-canvas,
+.character-card.focused-p2 .character-card-canvas,
+.character-card.focused-both .character-card-canvas {
+    filter: grayscale(0%);
 }
 
 /* 3D Canvas in Card (overlays PNG) */
@@ -307,8 +318,9 @@
     display: block;
     background: transparent;
     z-index: 2;
-    transition: opacity 0.5s ease-in-out;
+    transition: opacity 0.5s ease-in-out, filter 0.3s ease;
     opacity: 0;
+    filter: grayscale(100%);
 }
 
 /* Character Name Overlay */

@@ -2,7 +2,7 @@
   "id": "trump",
   "name": "Trump",
   "modelPath": "assets/characters/Trump/model.glb",
-  "thumbnail": "assets/characters/Trump/thumbnail.png",
+  "thumbnail": "assets/characters/Trump/visuals/trumpT.png",
   "stats": {
     "hp": 130,
     "stamina": 85,
@@ -61,4 +61,3 @@
     "losses": 0
   }
 }
-

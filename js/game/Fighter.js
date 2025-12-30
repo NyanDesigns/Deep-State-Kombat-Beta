@@ -116,8 +116,8 @@ export class Fighter {
 
         // Hitbox system - using spheres with character-specific sizes (larger radii for easier hits)
         // Smaller base hurtboxes for tighter collisions
-        const headRadius = (characterConfig?.hitboxes?.head || 0.36);
-        const torsoRadius = (characterConfig?.hitboxes?.torso || 0.5);
+        const headRadius = (characterConfig?.hitboxes?.head || 0.28);
+        const torsoRadius = (characterConfig?.hitboxes?.torso || 0.4);
 
         this.hurtSpheres = {
             head: new THREE.Sphere(new THREE.Vector3(), headRadius),
@@ -177,7 +177,7 @@ export class Fighter {
         this.loadAnim('atk2_right', THREE.LoopOnce, false, clips, ['kick r', 'kick right', 'right kick', 'kickr']);
         this.loadAnim('hit', THREE.LoopOnce, false, clips);
         this.loadAnim('jump', THREE.LoopOnce, false, clips);
-        this.loadAnim('crouch', THREE.LoopOnce, false, clips);
+        this.loadAnim('crouch', THREE.LoopOnce, true, clips); // LoopOnce with clamp to stay at end
         this.loadAnim('breath', THREE.LoopRepeat, false, clips, ['breathingidle', 'breath', 'idle']);
         this.loadAnim('win', THREE.LoopRepeat, false, clips);
         this.loadAnim('die', THREE.LoopOnce, true, clips); // Clamp at end
@@ -437,7 +437,7 @@ export class Fighter {
             const isLeg = lower.includes('kick') || lower.includes('atk2');
             baseSpeed = isLeg ? 1.8 : 2.1;
         } else if (name === 'jump' || name === 'crouch') {
-            baseSpeed = 2.5; // Much faster defensive animations
+            baseSpeed = 5.0; // Much faster defensive animations
         }
         let playbackSpeed = this.characterConfig?.animationSettings?.playbackSpeed?.[name] ?? baseSpeed;
         
@@ -493,15 +493,15 @@ export class Fighter {
 
         const clipName = clip.name?.toLowerCase() || '';
         const isJump = clipName.includes('jump');
-        const isCrouch = clipName.includes('crouch');
 
-        if (!isJump && !isCrouch) return;
+        // Only apply curves to jump (crouch is now looping, so keep constant speed)
+        if (!isJump) return;
 
         const ratio = Math.min(Math.max(this.currAct.time / clip.duration, 0), 1);
 
         // Fast at start, ease down toward end (quadratic ease-out)
-        const startSpeed = 3.2;
-        const endSpeed = 1.4;
+        const startSpeed = 6.0;
+        const endSpeed = 2.8;
         const ease = Math.pow(1 - ratio, 2); // 1 at start, 0 at end
         const targetSpeed = endSpeed + (startSpeed - endSpeed) * ease;
 
@@ -526,7 +526,7 @@ export class Fighter {
             const shouldTick = ratio > 0.08; // don't burn invuln before lift-off
             if (shouldTick) {
                 // Decay slower to lengthen invulnerability during airborne startup
-                const decayRate = ratio < 0.7 ? 0.5 : 1.0;
+                const decayRate = ratio < 0.8 ? 0.3 : 0.6;
                 this.jumpInvulnerabilityTimer = Math.max(0, this.jumpInvulnerabilityTimer - dt * decayRate);
             }
         } else {
@@ -605,7 +605,7 @@ export class Fighter {
             return;
         }
 
-        if (this.state === 'JUMP' || this.state === 'CROUCH') {
+        if (this.state === 'JUMP') {
             const clip = this.currAct?.getClip();
             const ratio = clip && clip.duration > 0 ? this.currAct.time / clip.duration : 1;
 
@@ -628,6 +628,40 @@ export class Fighter {
             }
 
             if (!this.currAct || !this.currAct.isRunning() || this.stateTimer > 2.5) {
+                this.state = 'IDLE';
+                this.play('idle', this.animationFade);
+            }
+            return;
+        }
+
+        // Crouch state - check if animation finished and handle transitions
+        if (this.state === 'CROUCH') {
+            const clip = this.currAct?.getClip();
+            if (clip && this.currAct) {
+                // Ensure animation stays at the end (crouched position) if it finished
+                if (this.currAct.timeScale > 0 && this.currAct.time >= clip.duration) {
+                    // Animation finished forward, clamp it at the end
+                    this.currAct.time = clip.duration;
+                    this.currAct.paused = false; // Keep it active but at the end
+                }
+            }
+            // Keep checking if S is still held in updateInput
+            // Don't auto-exit here, let updateInput handle it
+            return;
+        }
+
+        // Crouch exiting state - playing reverse animation (crouching -> standing)
+        if (this.state === 'CROUCH_EXITING') {
+            const clip = this.currAct?.getClip();
+            if (clip && this.currAct) {
+                // Check if reverse animation finished (time should be at 0 or less)
+                if (this.currAct.time <= 0 || !this.currAct.isRunning()) {
+                    // Reverse animation finished, return to idle
+                    this.state = 'IDLE';
+                    this.play('idle', this.animationFade);
+                }
+            } else {
+                // Fallback: if no animation, return to idle
                 this.state = 'IDLE';
                 this.play('idle', this.animationFade);
             }
@@ -678,7 +712,7 @@ export class Fighter {
             ? this.activeAttackIndices
             : attackSpheres.map((_, i) => i);
 
-        const canHitHead = opp.state !== 'CROUCH';
+        const canHitHead = opp.state !== 'CROUCH' && opp.state !== 'CROUCH_EXITING';
         const canHitTorso = !(opp.state === 'JUMP' && opp.jumpInvulnerabilityTimer > 0);
 
         let hit = false;
@@ -994,17 +1028,27 @@ export class Fighter {
         if (this.state !== 'IDLE') return;
         if (!this.actions['jump']) return; // Animation not loaded
         this.state = 'JUMP';
-        this.jumpInvulnerabilityTimer = 1.2; // Longer invulnerability to cover jump takeoff
+        this.jumpInvulnerabilityTimer = 2.5; // Longer invulnerability to cover jump takeoff
         this.play('jump', this.animationFade);
         this.logInput('jump');
     }
 
     crouch() {
-        if (this.state !== 'IDLE') return;
+        if (this.state === 'ATTACK' || this.state === 'HIT' || this.state === 'DEAD' || this.state === 'WIN') return;
         if (!this.actions['crouch']) return; // Animation not loaded
-        this.state = 'CROUCH';
-        this.play('crouch', this.animationFade);
-        this.logInput('crouch');
+        if (this.state !== 'CROUCH' && this.state !== 'CROUCH_EXITING') {
+            this.state = 'CROUCH';
+            this.play('crouch', this.animationFade, false); // Play forward (standing -> crouching)
+            this.logInput('crouch');
+        }
+    }
+
+    exitCrouch() {
+        if (this.state === 'CROUCH') {
+            // Play crouch animation in reverse (crouching -> standing)
+            this.state = 'CROUCH_EXITING';
+            this.play('crouch', this.animationFade, true); // Play in reverse
+        }
     }
 
     getAttackInput(keys) {
@@ -1026,13 +1070,36 @@ export class Fighter {
     }
 
     updateInput(dt, keys, camera) {
-        // Attack controls
+        // Check for crouch hold (S key)
+        const isCrouchHeld = this.keyDown(keys, 's');
+        
+        // Handle crouch state transitions
+        if (isCrouchHeld && this.state !== 'CROUCH' && this.state !== 'CROUCH_EXITING') {
+            // Enter crouch if S is pressed and not already crouching or exiting
+            if (this.state === 'IDLE' || this.state === 'WALK') {
+                this.crouch();
+                return; // Don't process other inputs while entering crouch
+            }
+        } else if (!isCrouchHeld && this.state === 'CROUCH') {
+            // Exit crouch if S is released while in CROUCH state
+            // This will reverse the animation (crouching -> standing)
+            this.exitCrouch();
+            return; // Don't process other inputs while exiting crouch
+        }
+        // Note: If state is CROUCH_EXITING, continue (handled in update method)
+
+        // If crouched or exiting crouch, prevent all movement and attacks
+        if (this.state === 'CROUCH' || this.state === 'CROUCH_EXITING') {
+            // While crouched or exiting, can't move or attack
+            return;
+        }
+
+        // Attack controls (only when not crouched)
         const attackInput = this.getAttackInput(keys);
         if (attackInput) { this.attack(attackInput); return; }
         
-        // W = Jump, S = Crouch
+        // W = Jump
         if (this.keyDown(keys, 'w')) { this.jump(); return; }
-        if (this.keyDown(keys, 's')) { this.crouch(); return; }
 
         // Get character's forward direction (toward opponent)
         const charForward = new THREE.Vector3(0, 0, 1);

@@ -1,8 +1,9 @@
 export class CharacterSelector {
-    constructor(characterManager, previewScene, storageManager = null) {
+    constructor(characterManager, previewScene, storageManager = null, imagePreloader = null) {
         this.characterManager = characterManager;
         this.previewScene = previewScene;
         this.storage = storageManager;
+        this.imagePreloader = imagePreloader;
         this.selectedCharacters = { p1: null, p2: null };
         this.focusedCharacters = { p1: null, p2: null }; // Track focused state for each player
         this.currentlyFocusedCharacter = null;
@@ -16,6 +17,14 @@ export class CharacterSelector {
         this.focusedSpecialCards = { p1: null, p2: null }; // 'random', 'add-new', or null
         // Track failed background loads to avoid noisy errors
         this.backgroundLoadFailures = new Set();
+        // Keyboard navigation state
+        this.keyboardFocusPosition = { row: 0, col: 0 }; // Current keyboard focus position
+        this.isKeyboardNavigationActive = false; // Flag to track keyboard navigation mode
+        this.gridLayout = [
+            ['trump', 'random', 'obama'],     // Row 0
+            ['epstein', 'add-new', 'brandon']  // Row 1
+        ];
+        this.keyboardNavigationBound = null; // Store bound handler for cleanup
     }
 
     /**
@@ -26,6 +35,7 @@ export class CharacterSelector {
     init(loadingManager = null, onComplete = null) {
         this.setupCustomFileInputs();
         this.setupClearButtons();
+        this.setupKeyboardNavigation();
         
         if (loadingManager) {
             // Sequential loading mode
@@ -163,6 +173,9 @@ export class CharacterSelector {
             // Set Trump as focused for both players by default
             this.focusedCharacters.p1 = trumpCharacter;
             this.focusedCharacters.p2 = trumpCharacter;
+            
+            // Initialize keyboard focus to Trump (row 0, col 0)
+            this.keyboardFocusPosition = { row: 0, col: 0 };
             
             // Update visual focus indicators
             this.updateCharacterCardFocus('trump', 'p1');
@@ -335,15 +348,23 @@ export class CharacterSelector {
         };
 
         // Helper to set src while forcing reload when reusing the same path
-        const setBackgroundSrc = (path) => {
+        const setBackgroundSrc = (path, characterId = null, variant = null) => {
             if (!path) return;
-            if (backgroundImg.src === path || backgroundImg.src.endsWith(path)) {
+            
+            // Try to use cached image if preloader is available
+            let imageSrc = path;
+            if (this.imagePreloader && characterId && variant) {
+                const cached = this.imagePreloader.getImageSource(path, characterId, variant);
+                imageSrc = cached;
+            }
+            
+            if (backgroundImg.src === imageSrc || backgroundImg.src.endsWith(path)) {
                 backgroundImg.src = '';
                 setTimeout(() => {
-                    backgroundImg.src = path;
+                    backgroundImg.src = imageSrc;
                 }, 0);
             } else {
-                backgroundImg.src = path;
+                backgroundImg.src = imageSrc;
             }
         };
 
@@ -358,7 +379,13 @@ export class CharacterSelector {
         } else {
             let pngIndex = 0;
             const tryNextBackground = () => {
-                setBackgroundSrc(pngCandidates[pngIndex]);
+                const candidate = pngCandidates[pngIndex];
+                // Extract variant from path (e.g., "brandonT.png" -> "T")
+                // Get filename from full path
+                const filename = candidate.split('/').pop();
+                const variantMatch = filename.match(/([A-Z0-9]+)\.png$/i);
+                const variant = variantMatch ? variantMatch[1] : null;
+                setBackgroundSrc(candidate, character.id, variant);
             };
 
             backgroundImg.onerror = () => {
@@ -449,6 +476,14 @@ export class CharacterSelector {
                     setTimeout(() => {
                         backgroundImg.style.display = 'none';
                     }, 500);
+                    
+                    // Check if this character is focused - if not, pause the animation
+                    const hasFocus = card.classList.contains('focused-p1') || 
+                                   card.classList.contains('focused-p2') || 
+                                   card.classList.contains('focused-both');
+                    if (!hasFocus && this.previewScene) {
+                        this.previewScene.pauseMiniSceneAnimation(character.id);
+                    }
                     
                     modelLoaded = true;
                     checkLoadingComplete();
@@ -666,53 +701,96 @@ export class CharacterSelector {
 
         const folderName = `${characterId.charAt(0).toUpperCase()}${characterId.slice(1)}`;
         const baseId = characterId.toLowerCase();
-        
-        // Build candidate list - prioritize S.png if selected, T.png if useThumbnail (cards without 3D), otherwise P1.png or P2.png based on playerSlot
-        const candidates = [];
-        
-        // Add thumbnail if available
-        if (typeof character === 'object' && character.thumbnail) {
-            candidates.push(character.thumbnail);
-        }
-        
-        // If selected, prioritize S.png first
-        if (isSelected) {
-            candidates.push(`assets/characters/${folderName}/visuals/${baseId}S.png`);
-        } else if (useThumbnail) {
-            // For character cards without 3D models, prioritize T.png
-            candidates.push(`assets/characters/${folderName}/visuals/${baseId}T.png`);
-        }
-        
-        // Prioritize player-specific PNG if playerSlot is specified (but only if not selected and not using thumbnail)
-        if (playerSlot === 'p1' && !isSelected && !useThumbnail) {
-            candidates.push(`assets/characters/${folderName}/visuals/${baseId}P1.png`);
-            candidates.push(`assets/characters/${folderName}/visuals/${baseId}P2.png`);
-        } else if (playerSlot === 'p2' && !isSelected && !useThumbnail) {
-            candidates.push(`assets/characters/${folderName}/visuals/${baseId}P2.png`);
-            candidates.push(`assets/characters/${folderName}/visuals/${baseId}P1.png`);
-        } else if (!isSelected && !useThumbnail) {
-            // Default: use P1 first, then P2
-            candidates.push(`assets/characters/${folderName}/visuals/${baseId}P1.png`);
-            candidates.push(`assets/characters/${folderName}/visuals/${baseId}P2.png`);
-        }
-        
-        // Add other variants as fallbacks (but not T.png if we already prioritized it)
-        if (!useThumbnail) {
-            candidates.push(`assets/characters/${folderName}/visuals/${baseId}V.png`);
-            candidates.push(`assets/characters/${folderName}/visuals/${baseId}T.png`);
-        } else {
-            candidates.push(`assets/characters/${folderName}/visuals/${baseId}V.png`);
-        }
-        
-        // If not already included, add S.png as fallback (for non-selected cases)
-        if (!isSelected) {
-            candidates.push(`assets/characters/${folderName}/visuals/${baseId}S.png`);
-        }
-        
-        // Add D.png as final fallback
-        candidates.push(`assets/characters/${folderName}/visuals/${baseId}D.png`);
+        const baseIdRegex = baseId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const buildVariantPath = (variant) => `assets/characters/${folderName}/visuals/${baseId}${variant}.png`;
 
-        // Remove duplicates while preserving order
+        const candidates = [];
+        const variantOverrides = new Map();
+        let customThumbnail = null;
+
+        const addOverride = (variant, value) => {
+            if (typeof value !== 'string') return;
+            const trimmed = value.trim();
+            if (trimmed) {
+                variantOverrides.set(variant, trimmed);
+            }
+        };
+
+        if (typeof character === 'object') {
+            const thumbnailValue = character.thumbnail;
+            if (thumbnailValue && typeof thumbnailValue === 'object') {
+                addOverride('T', thumbnailValue.default || thumbnailValue.t || thumbnailValue.thumbnail);
+                addOverride('T1', thumbnailValue.t1);
+                addOverride('T2', thumbnailValue.t2);
+                addOverride('P1', thumbnailValue.p1);
+                addOverride('P2', thumbnailValue.p2);
+                addOverride('S', thumbnailValue.selected || thumbnailValue.s);
+                addOverride('V', thumbnailValue.victory || thumbnailValue.v);
+                addOverride('D', thumbnailValue.defeat || thumbnailValue.d);
+            } else if (typeof thumbnailValue === 'string') {
+                const trimmed = thumbnailValue.trim();
+                if (trimmed) {
+                    const match = trimmed.match(new RegExp(`${baseIdRegex}(T1|T2|T|P1|P2|S|V|D)\\.png$`, 'i'));
+                    if (match) {
+                        variantOverrides.set(match[1].toUpperCase(), trimmed);
+                    } else {
+                        customThumbnail = trimmed;
+                    }
+                }
+            }
+        }
+
+        const pushVariant = (variant) => {
+            const path = variantOverrides.get(variant) || buildVariantPath(variant);
+            candidates.push(path);
+        };
+
+        if (customThumbnail && useThumbnail) {
+            candidates.push(customThumbnail);
+        }
+
+        if (isSelected) {
+            pushVariant('S');
+        }
+
+        if (useThumbnail) {
+            pushVariant('T');
+        }
+
+        if (playerSlot === 'p1') {
+            if (variantOverrides.has('T1')) {
+                candidates.push(variantOverrides.get('T1'));
+            }
+            pushVariant('P1');
+            pushVariant('P2');
+        } else if (playerSlot === 'p2') {
+            if (variantOverrides.has('T2')) {
+                candidates.push(variantOverrides.get('T2'));
+            }
+            pushVariant('P2');
+            pushVariant('P1');
+        } else if (!useThumbnail) {
+            pushVariant('P1');
+            pushVariant('P2');
+        }
+
+        if (!useThumbnail) {
+            pushVariant('V');
+            pushVariant('T');
+        } else {
+            pushVariant('V');
+        }
+
+        if (!isSelected) {
+            pushVariant('S');
+        }
+
+        pushVariant('D');
+
+        if (customThumbnail && !useThumbnail) {
+            candidates.push(customThumbnail);
+        }
+
         return [...new Set(candidates)];
     }
 
@@ -888,11 +966,16 @@ export class CharacterSelector {
             this.clearCardFocus(playerSlot);
         }
         
-        // Find the previous card that had focus for this player
+        // Find the previous card that had focus for this player - pause animation if it had one
         const previousCards = document.querySelectorAll(`.character-card.focused-${playerSlot}, .character-card.focused-both`);
         previousCards.forEach(prevCard => {
             const prevCharacterId = prevCard.dataset.characterId;
             if (prevCharacterId) {
+                // Pause animation for the previous card if it's a 3D model
+                if (this.previewScene && this.characterManager.isCharacterAvailable(prevCharacterId)) {
+                    this.previewScene.pauseMiniSceneAnimation(prevCharacterId);
+                }
+                
                 // Remove this player's focus from the previous card
                 prevCard.classList.remove(`focused-${playerSlot}`, `focused-both`);
                 
@@ -917,6 +1000,11 @@ export class CharacterSelector {
                 // Only this player is focused - use individual focus
                 card.classList.add(`focused-${playerSlot}`);
             }
+            
+            // Resume animation for the current card if it's a 3D model
+            if (this.previewScene && this.characterManager.isCharacterAvailable(characterId)) {
+                this.previewScene.resumeMiniSceneAnimation(characterId);
+            }
         }
     }
 
@@ -930,10 +1018,17 @@ export class CharacterSelector {
         const otherFocusedCardType = this.focusedSpecialCards[otherSlot];
         const currentCardType = card.dataset.cardType;
 
-        // Find the previous card that had focus for this player
+        // Find the previous card that had focus for this player - pause animation if it had one
         const previousCards = document.querySelectorAll(`.character-card.focused-${playerSlot}, .character-card.focused-both`);
         previousCards.forEach(prevCard => {
             const prevCardType = prevCard.dataset.cardType;
+            const prevCharacterId = prevCard.dataset.characterId;
+            
+            // Pause animation for previous character card if it's a 3D model
+            if (prevCharacterId && this.previewScene && this.characterManager.isCharacterAvailable(prevCharacterId)) {
+                this.previewScene.pauseMiniSceneAnimation(prevCharacterId);
+            }
+            
             if (prevCardType) {
                 // Remove this player's focus from the previous special card
                 prevCard.classList.remove(`focused-${playerSlot}`, `focused-both`);
@@ -947,9 +1042,15 @@ export class CharacterSelector {
 
         // Also clear any character card focus for this player (special cards and character cards are mutually exclusive)
         document.querySelectorAll(`.character-card[data-character-id].focused-${playerSlot}, .character-card[data-character-id].focused-both`).forEach(charCard => {
+            const charId = charCard.dataset.characterId;
+            
+            // Pause animation for character card if it's a 3D model
+            if (charId && this.previewScene && this.characterManager.isCharacterAvailable(charId)) {
+                this.previewScene.pauseMiniSceneAnimation(charId);
+            }
+            
             charCard.classList.remove(`focused-${playerSlot}`, `focused-both`);
             // Restore other player's focus if needed
-            const charId = charCard.dataset.characterId;
             const otherFocusedChar = this.focusedCharacters[otherSlot];
             if (otherFocusedChar && otherFocusedChar.id === charId) {
                 charCard.classList.add(`focused-${otherSlot}`);
@@ -1233,6 +1334,15 @@ export class CharacterSelector {
             return;
         }
 
+        // Clear keyboard navigation mode when mouse is used
+        if (!this.isKeyboardNavigationActive) {
+            // Mouse navigation - find position in grid and update keyboard focus position
+            const position = this.findCharacterPosition(character.id);
+            if (position) {
+                this.keyboardFocusPosition = position;
+            }
+        }
+
         console.log(`Character focused: ${character.name} (${character.id})`);
         this.currentlyFocusedCharacter = character;
 
@@ -1279,6 +1389,22 @@ export class CharacterSelector {
             }
             // Don't update P1 preview or info panel - keep them independent
         }
+    }
+
+    /**
+     * Find character position in grid layout
+     * @param {string} characterId - Character ID
+     * @returns {{row: number, col: number}|null} - Position or null if not found
+     */
+    findCharacterPosition(characterId) {
+        for (let row = 0; row < this.gridLayout.length; row++) {
+            for (let col = 0; col < this.gridLayout[row].length; col++) {
+                if (this.gridLayout[row][col] === characterId) {
+                    return { row, col };
+                }
+            }
+        }
+        return null;
     }
 
     /**
@@ -1368,15 +1494,23 @@ export class CharacterSelector {
         console.log(`Loading background preview for ${playerSlot}: ${character.name} (${character.id}): ${pngCandidates[0]} (selected: ${isSelected})`);
 
         // Helper to set src while forcing reload when reusing the same path
-        const setBackgroundSrc = (path) => {
+        const setBackgroundSrc = (path, characterId = null, variant = null) => {
             if (!path) return;
-            if (backgroundImg.src === path || backgroundImg.src.endsWith(path)) {
+            
+            // Try to use cached image if preloader is available
+            let imageSrc = path;
+            if (this.imagePreloader && characterId && variant) {
+                const cached = this.imagePreloader.getImageSource(path, characterId, variant);
+                imageSrc = cached;
+            }
+            
+            if (backgroundImg.src === imageSrc || backgroundImg.src.endsWith(path)) {
                 backgroundImg.src = '';
                 setTimeout(() => {
-                    backgroundImg.src = path;
+                    backgroundImg.src = imageSrc;
                 }, 0);
             } else {
-                backgroundImg.src = path;
+                backgroundImg.src = imageSrc;
             }
         };
 
@@ -1384,7 +1518,13 @@ export class CharacterSelector {
         let candidateIndex = 0;
         const failureKey = `${playerSlot}:${character.id}`;
         const tryNextCandidate = () => {
-            setBackgroundSrc(pngCandidates[candidateIndex]);
+            const candidate = pngCandidates[candidateIndex];
+            // Extract variant from path (e.g., "brandonS.png" -> "S")
+            // Get filename from full path
+            const filename = candidate.split('/').pop();
+            const variantMatch = filename.match(/([A-Z0-9]+)\.png$/i);
+            const variant = variantMatch ? variantMatch[1] : null;
+            setBackgroundSrc(candidate, character.id, variant);
         };
 
         // Set up error handler with fallback and no console.error noise
@@ -1587,6 +1727,213 @@ export class CharacterSelector {
         const fileInput = document.getElementById('p1-file');
         if (fileInput) {
             fileInput.click();
+        }
+    }
+
+    /**
+     * Setup keyboard navigation for character selection
+     */
+    setupKeyboardNavigation() {
+        // Bind handler to preserve 'this' context
+        this.keyboardNavigationBound = (e) => this.handleKeyboardNavigation(e);
+        window.addEventListener('keydown', this.keyboardNavigationBound);
+        
+        // Clear keyboard navigation when mouse is used
+        document.addEventListener('mousemove', () => {
+            this.isKeyboardNavigationActive = false;
+        });
+    }
+
+    /**
+     * Handle keyboard navigation input
+     * @param {KeyboardEvent} e - Keyboard event
+     */
+    handleKeyboardNavigation(e) {
+        const key = e.key.toLowerCase();
+        
+        // Check if this is a navigation key
+        const isNavigationKey = ['w', 'a', 's', 'd', 'arrowup', 'arrowdown', 'arrowleft', 'arrowright'].includes(key);
+        const isEnter = key === 'enter';
+        const isEscape = key === 'escape';
+
+        if (!isNavigationKey && !isEnter && !isEscape) {
+            return; // Not a key we handle
+        }
+
+        // Prevent default behavior for navigation keys
+        if (isNavigationKey || isEnter) {
+            e.preventDefault();
+        }
+
+        if (isNavigationKey) {
+            this.isKeyboardNavigationActive = true;
+            
+            // Map keys to movement deltas
+            let deltaRow = 0;
+            let deltaCol = 0;
+            
+            if (key === 'w' || key === 'arrowup') {
+                deltaRow = -1;
+            } else if (key === 's' || key === 'arrowdown') {
+                deltaRow = 1;
+            } else if (key === 'a' || key === 'arrowleft') {
+                deltaCol = -1;
+            } else if (key === 'd' || key === 'arrowright') {
+                deltaCol = 1;
+            }
+
+            this.moveKeyboardFocus(deltaRow, deltaCol);
+        } else if (isEnter) {
+            this.handleKeyboardSelect();
+        } else if (isEscape) {
+            this.handleKeyboardDeselect();
+        }
+    }
+
+    /**
+     * Move keyboard focus by delta
+     * @param {number} deltaRow - Change in row (-1, 0, or 1)
+     * @param {number} deltaCol - Change in column (-1, 0, or 1)
+     */
+    moveKeyboardFocus(deltaRow, deltaCol) {
+        const newRow = this.keyboardFocusPosition.row + deltaRow;
+        const newCol = this.keyboardFocusPosition.col + deltaCol;
+
+        // Wrap around at edges
+        const wrappedRow = ((newRow % this.gridLayout.length) + this.gridLayout.length) % this.gridLayout.length;
+        const wrappedCol = ((newCol % this.gridLayout[0].length) + this.gridLayout[0].length) % this.gridLayout[0].length;
+
+        this.setKeyboardFocus(wrappedRow, wrappedCol);
+    }
+
+    /**
+     * Set keyboard focus to a specific grid position
+     * @param {number} row - Row index (0-based)
+     * @param {number} col - Column index (0-based)
+     */
+    setKeyboardFocus(row, col) {
+        // Validate position
+        if (row < 0 || row >= this.gridLayout.length || col < 0 || col >= this.gridLayout[0].length) {
+            return;
+        }
+
+        // Get current cell type before changing position
+        const currentRow = this.keyboardFocusPosition.row;
+        const currentCol = this.keyboardFocusPosition.col;
+        const currentCellType = this.gridLayout[currentRow] && this.gridLayout[currentRow][currentCol];
+        const newCellType = this.gridLayout[row][col];
+
+        // Only clean up if we're actually moving to a different cell
+        const isMovingToDifferentCell = currentRow !== row || currentCol !== col;
+
+        // Clean up previous special card state if moving away from it
+        if (isMovingToDifferentCell && (currentCellType === 'random' || currentCellType === 'add-new')) {
+            // Stop random flicker if it's active
+            if (currentCellType === 'random') {
+                this.stopRandomFlicker();
+            }
+            
+            // Clear focused special cards for the active slot
+            const targetSlot = this.getTargetPlayerSlot();
+            if (this.focusedSpecialCards[targetSlot]) {
+                this.focusedSpecialCards[targetSlot] = null;
+                this.clearCardFocus(targetSlot);
+            }
+        }
+
+        // Update keyboard focus position
+        this.keyboardFocusPosition = { row, col };
+        const cellType = newCellType;
+
+        // Get the card at this position
+        const card = this.getCardAtPosition(row, col);
+        if (!card) {
+            return;
+        }
+
+        // Handle based on card type
+        if (cellType === 'random') {
+            // For random card, trigger focus behavior
+            const targetSlot = this.getTargetPlayerSlot();
+            this.focusedSpecialCards[targetSlot] = 'random';
+            this.updateCardFocus(card, targetSlot);
+            this.startRandomFlicker(targetSlot);
+        } else if (cellType === 'add-new') {
+            // For add-new card, trigger focus behavior
+            const targetSlot = this.getTargetPlayerSlot();
+            this.focusedSpecialCards[targetSlot] = 'add-new';
+            this.updateCardFocus(card, targetSlot);
+        } else {
+            // Character card
+            const character = this.characterManager.getCharacter(cellType);
+            if (character) {
+                this.onCharacterFocus(character);
+            }
+        }
+    }
+
+    /**
+     * Get card element at grid position
+     * @param {number} row - Row index (0-based)
+     * @param {number} col - Column index (0-based)
+     * @returns {HTMLElement|null} - Card element or null if not found
+     */
+    getCardAtPosition(row, col) {
+        const container = document.getElementById('character-grid');
+        if (!container) return null;
+
+        const rows = container.querySelectorAll('.character-grid-row');
+        if (row >= rows.length) return null;
+
+        const cards = rows[row].querySelectorAll('.character-card');
+        if (col >= cards.length) return null;
+
+        return cards[col];
+    }
+
+    /**
+     * Handle keyboard selection (Enter key)
+     */
+    handleKeyboardSelect() {
+        // Check if both characters are selected - if so, start the game
+        if (this.selectedCharacters.p1 && this.selectedCharacters.p2) {
+            // Both characters selected, start the game by clicking the start button
+            const startBtn = document.getElementById('btn-start');
+            if (startBtn) {
+                // Check if button is visible and enabled
+                const computedStyle = window.getComputedStyle(startBtn);
+                if (computedStyle.display !== 'none' && !startBtn.disabled) {
+                    // Trigger the start button click to start the game
+                    startBtn.click();
+                }
+            }
+            return;
+        }
+
+        // Otherwise, select character/card at current position
+        const { row, col } = this.keyboardFocusPosition;
+        const cellType = this.gridLayout[row][col];
+
+        if (cellType === 'random') {
+            this.selectRandomCharacter();
+        } else if (cellType === 'add-new') {
+            this.showAddNewCharacterDialog();
+        } else {
+            const character = this.characterManager.getCharacter(cellType);
+            if (character) {
+                this.selectCharacter(character);
+            }
+        }
+    }
+
+    /**
+     * Handle keyboard deselection (Escape key)
+     */
+    handleKeyboardDeselect() {
+        // Determine which player slot to clear
+        const targetSlot = !this.selectedCharacters.p1 ? 'p1' : 'p2';
+        if (this.selectedCharacters[targetSlot]) {
+            this.clearSelection(targetSlot);
         }
     }
 }

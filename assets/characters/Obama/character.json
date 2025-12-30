@@ -2,7 +2,7 @@
   "id": "obama",
   "name": "Obama",
   "modelPath": "assets/characters/Obama/model.glb",
-  "thumbnail": "assets/characters/Obama/thumbnail.png",
+  "thumbnail": "assets/characters/Obama/visuals/obamaT.png",
   "stats": {
     "hp": 110,
     "stamina": 100,
@@ -61,4 +61,3 @@
     "losses": 0
   }
 }
-

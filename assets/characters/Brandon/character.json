@@ -2,7 +2,7 @@
   "id": "brandon",
   "name": "Brandon",
   "modelPath": "assets/characters/Brandon/model.glb",
-  "thumbnail": "assets/characters/Brandon/thumbnail.png",
+  "thumbnail": "assets/characters/Brandon/visuals/brandonT.png",
   "stats": {
     "hp": 120,
     "stamina": 90,
@@ -61,4 +61,3 @@
     "losses": 0
   }
 }
-

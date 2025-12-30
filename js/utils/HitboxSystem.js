@@ -6,42 +6,45 @@ export class HitboxSystem {
     static updateHurtSpheres(fighter) {
         // Update hurt spheres (body/head) - always active
         if (fighter.bones.head) {
-            // Use bone world position for head
+            // Use bone world position for head, with slight upward offset
             const headPos = BoneDiscovery.getBoneWorldPosition(fighter.bones.head);
             fighter.hurtSpheres.head.center.copy(headPos);
+            fighter.hurtSpheres.head.center.y += 0.15; // Move head hit point up
         } else if (fighter.modelBox) {
             // Fallback: use model bounding box
             const center = fighter.modelBox.getCenter(new THREE.Vector3());
             const size = fighter.modelBox.getSize(new THREE.Vector3());
-            fighter.hurtSpheres.head.center.set(center.x, center.y + size.y * 0.4, center.z);
+            fighter.hurtSpheres.head.center.set(center.x, center.y + size.y * 0.5, center.z);
         } else {
             // Ultimate fallback: use mesh position + estimated height
             fighter.hurtSpheres.head.center.set(
                 fighter.mesh.position.x,
-                fighter.mesh.position.y + 1.5,
+                fighter.mesh.position.y + 1.7,
                 fighter.mesh.position.z
             );
         }
 
         if (fighter.bones.spine) {
-            // Use bone world position for torso
+            // Use bone world position for torso, with slight upward offset
             const spinePos = BoneDiscovery.getBoneWorldPosition(fighter.bones.spine);
             fighter.hurtSpheres.torso.center.copy(spinePos);
+            fighter.hurtSpheres.torso.center.y += 0.12; // Move torso hit point up
         } else if (fighter.modelBox) {
             // Fallback: use model bounding box center
             const center = fighter.modelBox.getCenter(new THREE.Vector3());
             fighter.hurtSpheres.torso.center.copy(center);
+            fighter.hurtSpheres.torso.center.y += 0.12; // Move torso up
         } else {
             // Ultimate fallback: use mesh position
             fighter.hurtSpheres.torso.center.copy(fighter.mesh.position);
-            fighter.hurtSpheres.torso.center.y += 0.8; // Approximate torso height
+            fighter.hurtSpheres.torso.center.y += 0.95; // Approximate torso height, moved up
         }
 
         // Defensive toggles
         const baseHead = fighter.baseHurtRadii?.head ?? fighter.hurtSpheres.head.radius;
         const baseTorso = fighter.baseHurtRadii?.torso ?? fighter.hurtSpheres.torso.radius;
 
-        fighter.hurtSpheres.head.radius = fighter.state === 'CROUCH' ? 0 : baseHead;
+        fighter.hurtSpheres.head.radius = (fighter.state === 'CROUCH' || fighter.state === 'CROUCH_EXITING') ? 0 : baseHead;
         const torsoDisabled = fighter.state === 'JUMP' && fighter.jumpInvulnerabilityTimer > 0;
         fighter.hurtSpheres.torso.radius = torsoDisabled ? 0 : baseTorso;
     }

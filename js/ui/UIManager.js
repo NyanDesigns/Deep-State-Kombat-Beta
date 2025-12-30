@@ -139,12 +139,15 @@ export class UIManager {
             </div>
         `;
 
-        // Add event listeners
+        // Add event listeners (remove old ones first to avoid duplicates)
         const restartBtn = document.getElementById('btn-restart');
         const backBtn = document.getElementById('btn-back-selection');
 
         if (restartBtn) {
-            restartBtn.addEventListener('click', (e) => {
+            // Remove old listener by cloning the button
+            const newRestartBtn = restartBtn.cloneNode(true);
+            restartBtn.parentNode.replaceChild(newRestartBtn, restartBtn);
+            newRestartBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 if (this.onRestartFight) this.onRestartFight();
@@ -152,7 +155,10 @@ export class UIManager {
         }
 
         if (backBtn) {
-            backBtn.addEventListener('click', (e) => {
+            // Remove old listener by cloning the button
+            const newBackBtn = backBtn.cloneNode(true);
+            backBtn.parentNode.replaceChild(newBackBtn, backBtn);
+            newBackBtn.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 if (this.onMainMenu) this.onMainMenu();

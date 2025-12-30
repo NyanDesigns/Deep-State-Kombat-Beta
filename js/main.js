@@ -32,6 +32,7 @@ import { InputHandler } from './systems/InputHandler.js';
 import { EffectsSystem } from './systems/EffectsSystem.js';
 import { StorageManager } from './systems/StorageManager.js';
 import { FireParticleSystem } from './systems/FireParticleSystem.js';
+import { ImagePreloader } from './systems/ImagePreloader.js';
 
 let fighters = [];
 
@@ -43,6 +44,7 @@ let storageManager, characterManager, characterSelector;
 let inputHandler, effectsSystem;
 let appStateManager, uiStateController;
 let fireParticleSystem = null;
+let imagePreloader = null;
 
 function setupCallbacks() {
     gameState.onStateChange = (newState, oldState) => {
@@ -201,10 +203,13 @@ function bootstrap() {
     // Create UIStateController
     uiStateController = new UIStateController();
     
+    // Image preloader (for character selection images)
+    imagePreloader = new ImagePreloader(storageManager);
+    
     // Preview scene (depends on sceneManager and renderSystem)
     // Note: renderSystem will be created in bootstrap, so we pass it after initialization
     previewScene = new PreviewScene(sceneManager, null); // renderSystem will be set after init
-    characterSelector = new CharacterSelector(characterManager, previewScene, storageManager);
+    characterSelector = new CharacterSelector(characterManager, previewScene, storageManager, imagePreloader);
 
     // Utility systems
     inputHandler = new InputHandler();
@@ -292,6 +297,19 @@ async function startFirstLoadSequence() {
         uiStateController.showGrid();
     };
 
+    // Preload character images before characters are ready
+    orchestrator.onPhase('characters', async () => {
+        // Preload images for all characters
+        const allCharacters = characterManager.getAllCharacters();
+        if (allCharacters.length > 0) {
+            console.log('Preloading character images...');
+            await imagePreloader.preloadAllImages(allCharacters, (loaded, total) => {
+                console.log(`Image preload progress: ${loaded}/${total}`);
+            });
+            console.log('Character images preloaded');
+        }
+    });
+
     orchestrator.onCharactersReady = () => {
         // Initialize character selector with sequential loading
         characterSelector.init(loadingManager, () => {
@@ -337,6 +355,17 @@ async function startQuickLoad() {
     orchestrator.onGridReady = () => {
         uiStateController.showGrid();
     };
+
+    // Preload character images before characters are ready (for quick load)
+    orchestrator.onPhase('characters', async () => {
+        // Preload images for all characters
+        const allCharacters = characterManager.getAllCharacters();
+        if (allCharacters.length > 0) {
+            console.log('Preloading character images (quick load)...');
+            await imagePreloader.preloadAllImages(allCharacters);
+            console.log('Character images preloaded (quick load)');
+        }
+    });
 
     orchestrator.onCharactersReady = () => {
         // Initialize character selector without sequential loading (null = immediate mode)
@@ -492,6 +521,11 @@ function restartFight() {
 }
 
 function loadNewModels() {
+    // Stop any active random flicker
+    if (characterSelector && typeof characterSelector.stopRandomFlicker === 'function') {
+        characterSelector.stopRandomFlicker();
+    }
+
     gameState.setState('SETUP');
 
     if (fighters.length === 2) {
@@ -513,12 +547,32 @@ function loadNewModels() {
     }
     fighters = [];
 
+    // Hide HUD first
+    uiManager.hideHUD();
+    
+    // Clear the victory overlay
+    const overlay = document.getElementById('center-overlay');
+    if (overlay) {
+        overlay.innerHTML = '';
+        overlay.style.display = 'none';
+        overlay.style.visibility = 'hidden';
+    }
+
+    // Show setup screen BEFORE clearing selections to ensure it's visible
+    setupScreen.show();
+    
+    // Ensure setup screen is visible and on top
+    const setupScreenEl = document.getElementById('setup-screen');
+    if (setupScreenEl) {
+        setupScreenEl.style.display = 'flex';
+        setupScreenEl.style.visibility = 'visible';
+        setupScreenEl.style.opacity = '1';
+        setupScreenEl.style.zIndex = '100'; // Ensure it's on top
+    }
+
+    // Clear selections after setup screen is shown
     characterSelector.clearSelection('p1');
     characterSelector.clearSelection('p2');
-
-    document.getElementById('setup-screen').style.display = 'flex';
-    uiManager.hideHUD();
-    document.getElementById('center-overlay').innerHTML = '';
 
     gameState.resetTimer();
 }

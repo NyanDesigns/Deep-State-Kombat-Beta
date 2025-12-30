@@ -2,7 +2,7 @@
   "id": "epstein",
   "name": "Epstein",
   "modelPath": "assets/characters/Epstein/model.glb",
-  "thumbnail": "assets/characters/Epstein/thumbnail.png",
+  "thumbnail": "assets/characters/Epstein/visuals/epsteinT.png",
   "stats": {
     "hp": 90,
     "stamina": 110,
@@ -61,4 +61,3 @@
     "losses": 0
   }
 }
-

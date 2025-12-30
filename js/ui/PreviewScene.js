@@ -351,8 +351,10 @@ export class PreviewScene {
         const headTarget = new THREE.Vector3(0, 1.0, 0); // Lower anchor to push the model down in frame while keeping face centered
         const moveToTarget = headTarget.clone().sub(headPos);
         model.position.add(moveToTarget);
-        const extraDownOffset = -9.5; // push model further down in frame while keeping extreme zoom
+        const extraDownOffset = -8.5; // move model up a bit relative to previous extreme offset
+        const extraLeftOffset = 0.4; // shift model right in frame (positive X)
         model.position.y += extraDownOffset;
+        model.position.x += extraLeftOffset;
         model.updateMatrixWorld(true);
 
         // Compute portrait bounding sphere (favor head/shoulders instead of whole body)
@@ -378,7 +380,7 @@ export class PreviewScene {
         const fovY = THREE.MathUtils.degToRad(cam.fov || 36);
         const aspect = cam.aspect || 1;
         const fovX = 2 * Math.atan(Math.tan(fovY / 2) * aspect);
-        const fitMargin = 0.15; // slightly zoomed out from edge-to-edge
+        const fitMargin = 0.2; // zoomed out a bit more
         const distV = (effectiveSphere.radius * fitMargin) / Math.tan(fovY / 2);
         const distH = (effectiveSphere.radius * fitMargin) / Math.tan(fovX / 2);
         const fitDist = Math.max(distV, distH, (cam.near || 0.1) * 3.5); // avoid near-plane clipping

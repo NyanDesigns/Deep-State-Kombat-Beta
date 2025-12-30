@@ -14,7 +14,23 @@ export const CONFIG = {
         rightHand: { dmg: 6, cost: 8, range: 2.2, window: [0.1, 0.35] },
         leftLeg: { dmg: 15, cost: 18, range: 2.8, window: [0.25, 0.55] },
         rightLeg: { dmg: 15, cost: 18, range: 2.8, window: [0.25, 0.55] },
-        hitAngle: 0.6
+        hitAngle: 0.6,
+        // Combo system configuration
+        comboSpeedMultiplier: 1.5,  // Combo attacks play at 1.5x speed (minimum)
+        // Movement configuration for combo system
+        movement: {
+            pushback: {
+                light: 0.8,
+                heavy: 1.5
+            },
+            forward: {
+                light: 0.56,  // 70% of 0.8
+                heavy: 1.05   // 70% of 1.5
+            },
+            frictionFactor: 0.25,  // When too close
+            forwardFrictionFactor: 0.3,  // Slightly more friction for forward movement
+            collisionBuffer: 1.2  // Multiplier for collision distance check
+        }
     }
 };
 

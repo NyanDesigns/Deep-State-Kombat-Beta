@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import * as SkeletonUtils from 'three/addons/utils/SkeletonUtils.js';
+import { BoneDiscovery } from '../utils/BoneDiscovery.js';
 
 // Placeholder for PreviewScene - will be enhanced with character system integration
 export class PreviewScene {
@@ -307,59 +308,91 @@ export class PreviewScene {
         // Use SkeletonUtils for correct skinning/animation cloning
         const model = SkeletonUtils.clone(gltf.scene);
 
-        // Ensure model is visible and matrix is updated
+        // Ensure model is visible and ready for measurement
         model.visible = true;
+        model.traverse(c => {
+            if (c.isMesh) {
+                c.castShadow = false;
+                c.receiveShadow = false;
+                c.frustumCulled = false; // Prevent disappearing while framing
+            }
+        });
         model.updateMatrixWorld(true);
 
-        // Scale and position model (compact for grid cell, portrait framing)
+        // Scale to a frustum-safe target height
         const box = new THREE.Box3().setFromObject(model);
         const size = new THREE.Vector3();
         box.getSize(size);
         const h = size.y || 1;
-        const originalCenter = box.getCenter(new THREE.Vector3());
-        
-        // Increasing scale significantly as requested for a "bigger model"
-        // Scale increased from 8.5 to 12.0 for even larger zoom-in on the face
-        const scale = 9.0 / h; 
+        const targetHeight = 14.0; // Ultra aggressive scale to dominate the portrait with the head
+        const scale = targetHeight / h;
         model.scale.setScalar(scale);
-        
-        // ROOT ISSUE FIX: Use camera-relative positioning to prevent model from disappearing
-        // The camera is at (0, 1.2, 1.8) looking at (0, 2.0, 0) with 36° FOV
-        // Camera moved DOWN, model moved DOWN MORE aggressively, scale kept large
-        const cameraLookAtY = 2.0; // Camera's lookAt point (moved UP to focus on face)
-        // Position the face/neck area (approximately 80% up the model) at the camera's lookAt point
-        // Then move model DOWN much more aggressively to show face instead of feet
-        const faceRatio = 0.80; // Face is ~80% up from bottom of bounding box
-        const faceLocalY = box.min.y + (size.y * faceRatio);
-        const targetFaceY = cameraLookAtY; // Face should be at camera lookAt
-        const additionalDownOffset = -2.0; // MUCH more aggressive offset to move model DOWN (from -0.8 to -2.0)
-        const finalY = targetFaceY - (faceLocalY * scale) + additionalDownOffset;
-        
-        // Fixed Z distance - adjusted to work with larger scale
-        const finalZ = -4.0;
-        
-        console.log(`Camera-relative reposition for ${cellId} (camera DOWN, model DOWN MORE, scale LARGE):`);
-        console.log(`  Scale: ${scale.toFixed(2)}, Original height: ${h.toFixed(2)}`);
-        console.log(`  Camera lookAt Y: ${cameraLookAtY}, Target face Y: ${targetFaceY.toFixed(2)}`);
-        console.log(`  Face local Y: ${faceLocalY.toFixed(2)}, Scaled: ${(faceLocalY * scale).toFixed(2)}`);
-        console.log(`  Additional down offset: ${additionalDownOffset}, Final Y: ${finalY.toFixed(2)}, Final Z: ${finalZ.toFixed(2)}`);
-        
-        model.position.set(
-            -originalCenter.x * scale, // Center horizontally
-            finalY,                    // Position face relative to camera lookAt (moved DOWN aggressively)
-            finalZ                     // Fixed distance to prevent clipping
-        );
-        
-        // Update matrix to get accurate final state
         model.updateMatrixWorld(true);
+
+        // Locate head/neck via bones; fallback to box top
+        let headBone = null;
+        model.traverse(obj => {
+            if (headBone) return;
+            if (obj.isSkinnedMesh && obj.skeleton) {
+                const bones = BoneDiscovery.discoverBones(obj.skeleton);
+                headBone = bones.head || bones.spine;
+            }
+        });
+
+        let headPos = headBone ? BoneDiscovery.getBoneWorldPosition(headBone) : new THREE.Vector3();
+        if (!BoneDiscovery.isValidPosition(headPos)) {
+            box.setFromObject(model);
+            box.getSize(size);
+            const center = box.getCenter(new THREE.Vector3());
+            headPos = new THREE.Vector3(center.x, box.max.y, center.z);
+        }
+
+        // Move model so the head lands at a consistent target point
+        const headTarget = new THREE.Vector3(0, 1.0, 0); // Lower anchor to push the model down in frame while keeping face centered
+        const moveToTarget = headTarget.clone().sub(headPos);
+        model.position.add(moveToTarget);
+        model.updateMatrixWorld(true);
+
+        // Compute portrait bounding sphere (favor head/shoulders instead of whole body)
         const finalBox = new THREE.Box3().setFromObject(model);
-        const finalCenter = finalBox.getCenter(new THREE.Vector3());
-        
-        console.log(`Mini-scene model loaded for ${cellId}:`);
-        console.log(`  Scale: ${scale.toFixed(2)}, Original height: ${h.toFixed(2)}`);
-        console.log(`  Original center: (${originalCenter.x.toFixed(2)}, ${originalCenter.y.toFixed(2)}, ${originalCenter.z.toFixed(2)})`);
-        console.log(`  Model position: (${model.position.x.toFixed(2)}, ${model.position.y.toFixed(2)}, ${model.position.z.toFixed(2)})`);
-        console.log(`  Final center: (${finalCenter.x.toFixed(2)}, ${finalCenter.y.toFixed(2)}, ${finalCenter.z.toFixed(2)})`);
+        const finalSphere = new THREE.Sphere();
+        finalBox.getBoundingSphere(finalSphere);
+
+        const portraitBox = finalBox.clone();
+        const portraitHeightUp = 0.08;   // maximum tight above the head
+        const portraitHeightDown = 0.12; // maximum tight below to focus on face/shoulders only
+        portraitBox.min.y = Math.max(headTarget.y - portraitHeightDown, finalBox.min.y);
+        portraitBox.max.y = Math.min(headTarget.y + portraitHeightUp, finalBox.max.y);
+        if (portraitBox.min.y >= portraitBox.max.y) {
+            portraitBox.min.y = finalBox.min.y;
+            portraitBox.max.y = headTarget.y;
+        }
+        const portraitSphere = new THREE.Sphere();
+        portraitBox.getBoundingSphere(portraitSphere);
+        const effectiveSphere = portraitSphere.radius > 0 ? portraitSphere : finalSphere;
+
+        // Fit camera distance so the whole model stays in view
+        const cam = miniScene.camera;
+        const fovY = THREE.MathUtils.degToRad(cam.fov || 36);
+        const aspect = cam.aspect || 1;
+        const fovX = 2 * Math.atan(Math.tan(fovY / 2) * aspect);
+        const fitMargin = 0.4; // push in even tighter
+        const distV = (effectiveSphere.radius * fitMargin) / Math.tan(fovY / 2);
+        const distH = (effectiveSphere.radius * fitMargin) / Math.tan(fovX / 2);
+        const fitDist = Math.max(distV, distH, (cam.near || 0.1) * 2.0); // avoid near-plane clipping
+
+        // Position camera in front of the model, looking at the head target
+        const viewDir = new THREE.Vector3(0, 0, 1); // camera sits in +Z, looks toward -Z
+        const camPos = headTarget.clone().add(viewDir.multiplyScalar(fitDist));
+        cam.position.copy(camPos);
+        cam.lookAt(headTarget);
+        cam.updateProjectionMatrix();
+
+        console.log(`Bone/frustum-based framing for ${cellId}:`);
+        console.log(`  Scale: ${scale.toFixed(3)}, targetHeight: ${targetHeight.toFixed(2)}, radius: ${effectiveSphere.radius.toFixed(3)}`);
+        console.log(`  Head target: (${headTarget.x.toFixed(2)}, ${headTarget.y.toFixed(2)}, ${headTarget.z.toFixed(2)})`);
+        console.log(`  Camera pos: (${cam.position.x.toFixed(2)}, ${cam.position.y.toFixed(2)}, ${cam.position.z.toFixed(2)}), fovY=${cam.fov}`);
+        console.log(`  Fit distances: vertical=${distV.toFixed(2)}, horizontal=${distH.toFixed(2)}, chosen=${fitDist.toFixed(2)}`);
 
         // Ensure materials are visible and properly lit without overriding everything
         model.traverse(c => {
@@ -367,7 +400,7 @@ export class PreviewScene {
                 c.castShadow = false;
                 c.receiveShadow = false;
                 c.visible = true;
-                
+
                 // If the material is missing or problematic, fix it
                 if (c.material) {
                     const materials = Array.isArray(c.material) ? c.material : [c.material];
@@ -394,7 +427,7 @@ export class PreviewScene {
                     testCube.geometry.dispose();
                     testCube.material.dispose();
                     console.log(`Test cube removed from ${cellId}`);
-                    
+
                     // Re-render immediately after removing test cube using master renderSystem
                     if (this.renderSystem && miniScene.scene && miniScene.camera && miniScene.canvas) {
                         const rect = miniScene.canvas.getBoundingClientRect();
@@ -411,24 +444,24 @@ export class PreviewScene {
                 }
             }, 2000);
         }
-        
+
         // Add to scene
         miniScene.scene.add(model);
         miniScene.model = model;
-        
+
         // Ensure model and all children are visible
         model.traverse((child) => {
             if (child.isMesh || child.isGroup) {
                 child.visible = true;
             }
         });
-        
+
         // Verify model is in scene
         if (!miniScene.scene.children.includes(model)) {
             console.error(`Model not added to scene for ${cellId}!`);
             miniScene.scene.add(model);
         }
-        
+
         console.log(`Model added to scene for ${cellId}, scene children count: ${miniScene.scene.children.length}`);
         console.log(`Scene children for ${cellId}:`, miniScene.scene.children.map(c => c.name || c.type).join(', '));
 
@@ -450,7 +483,7 @@ export class PreviewScene {
                 action.play();
             }
         }
-        
+
         // Render immediately after model is loaded using master renderSystem
         if (this.renderSystem && miniScene.scene && miniScene.camera && miniScene.canvas) {
             const rect = miniScene.canvas.getBoundingClientRect();

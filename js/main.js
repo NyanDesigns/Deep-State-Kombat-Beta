@@ -528,18 +528,21 @@ function endGame(winnerId) {
 
     gameState.setState('OVER');
 
+    let winnerFighter = null;
+    let loserFighter = null;
+
     if (fighters.length === 2 && winnerId) {
-        const winner = winnerId === 'p1' ? fighters[0] : fighters[1];
-        const loser = winnerId === 'p1' ? fighters[1] : fighters[0];
-        winner.state = 'WIN';
-        winner.play('win', winner.animationFade);
-        if (loser) {
-            loser.state = 'DEAD';
-            loser.play('die', loser.animationFade);
+        winnerFighter = winnerId === 'p1' ? fighters[0] : fighters[1];
+        loserFighter = winnerId === 'p1' ? fighters[1] : fighters[0];
+        winnerFighter.state = 'WIN';
+        winnerFighter.play('win', winnerFighter.animationFade);
+        if (loserFighter) {
+            loserFighter.state = 'DEAD';
+            loserFighter.play('die', loserFighter.animationFade);
         }
     }
 
-    uiManager.showVictory(winnerId);
+    uiManager.showVictory(winnerId, winnerFighter, loserFighter);
 }
 
 function handleHitEvents(events) {

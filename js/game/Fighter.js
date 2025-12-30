@@ -417,7 +417,7 @@ export class Fighter {
         }
     }
 
-    play(name, fade = null, reverse = false) {
+    play(name, fade = null, reverse = false, isCombo = false) {
         const next = this.actions[name];
         if (!next) return;
         const fadeTime = (fade === null || fade === undefined) ? this.animationFade : fade;
@@ -439,7 +439,13 @@ export class Fighter {
         } else if (name === 'jump' || name === 'crouch') {
             baseSpeed = 2.5; // Much faster defensive animations
         }
-        const playbackSpeed = this.characterConfig?.animationSettings?.playbackSpeed?.[name] ?? baseSpeed;
+        let playbackSpeed = this.characterConfig?.animationSettings?.playbackSpeed?.[name] ?? baseSpeed;
+        
+        // Apply combo speed multiplier for combo attacks (subsequent hits in a combo)
+        if (isCombo && isAttackAnim) {
+            const comboMultiplier = CONFIG.combat.comboSpeedMultiplier || 1.5;
+            playbackSpeed *= comboMultiplier;
+        }
 
         // If same animation is already playing, just update direction if needed
         if (this.currAct === next) {
@@ -709,7 +715,37 @@ export class Fighter {
         const damage = combatStats?.dmg ?? 0;
         const impactPos = opp.mesh.position.clone();
         impactPos.y += opp.collisionHeight * 0.5;
-        opp.takeDamage(damage, this.atkType, this); // Pass attacker for pushback
+        
+        // Apply damage and get pushback amount
+        const damageResult = opp.takeDamage(damage, this.atkType, this);
+        const pushbackAmount = damageResult.pushbackAmount || 0;
+
+        // Apply forward movement for attacker to maintain combo range
+        if (pushbackAmount > 0 && opp.mesh) {
+            // Calculate forward direction (toward target)
+            const forwardDirection = new THREE.Vector3().subVectors(opp.mesh.position, this.mesh.position);
+            forwardDirection.y = 0; // Keep movement horizontal
+            if (forwardDirection.lengthSq() > 0) {
+                forwardDirection.normalize();
+                
+                // Get forward movement ratio from config based on attack type
+                const isHeavy = this.isHeavyAttack(this.atkType);
+                const basePushAmount = isHeavy 
+                    ? CONFIG.combat.movement.pushback.heavy 
+                    : CONFIG.combat.movement.pushback.light;
+                const baseForwardAmount = isHeavy 
+                    ? CONFIG.combat.movement.forward.heavy 
+                    : CONFIG.combat.movement.forward.light;
+                
+                // Calculate forward amount: scale base forward amount by the ratio of actual pushback to base pushback
+                // This ensures forward movement is proportional to the actual pushback applied (after friction)
+                const pushbackRatio = basePushAmount > 0 ? pushbackAmount / basePushAmount : 0;
+                const forwardAmount = baseForwardAmount * pushbackRatio;
+                
+                // Apply forward movement
+                this.applyForwardMovement(forwardAmount, forwardDirection, opp);
+            }
+        }
 
         // Gain stamina when landing a successful hit - more stamina for heavier hits
         const staminaGain = this.isHeavyAttack(this.atkType) ? 15 : 8; // Heavy hits give more stamina
@@ -731,6 +767,112 @@ export class Fighter {
         return distance < minDistance;
     }
 
+    /**
+     * Calculate movement amount with friction applied based on collision distance
+     * @param {number} amount - Base movement amount
+     * @param {THREE.Vector3} direction - Normalized movement direction
+     * @param {THREE.Vector3} targetPos - Position after movement
+     * @param {THREE.Vector3} sourcePos - Position of the other character
+     * @param {number} frictionFactor - Friction multiplier when too close
+     * @param {number} collisionRadius - This character's collision radius
+     * @param {number} otherCollisionRadius - Other character's collision radius
+     * @returns {number} - Final movement amount after friction
+     */
+    calculateMovementWithFriction(amount, direction, targetPos, sourcePos, frictionFactor, collisionRadius, otherCollisionRadius) {
+        // Check if movement would cause collision with other character (friction effect)
+        const distanceAfterMove = targetPos.distanceTo(sourcePos);
+        const minCollisionDistance = collisionRadius + otherCollisionRadius;
+        const buffer = CONFIG.combat.movement.collisionBuffer || 1.2;
+
+        // If movement would cause collision, apply friction (reduce movement)
+        if (distanceAfterMove < minCollisionDistance * buffer) {
+            return amount * frictionFactor;
+        }
+        return amount;
+    }
+
+    /**
+     * Apply pushback movement when hit
+     * @param {number} amount - Base pushback amount
+     * @param {THREE.Vector3} direction - Normalized pushback direction (away from attacker)
+     * @param {Fighter} attacker - The attacking fighter
+     * @returns {number} - Actual pushback amount applied (after friction)
+     */
+    applyPushback(amount, direction, attacker) {
+        if (!attacker || !attacker.mesh) return 0;
+
+        // Calculate potential new position
+        const potentialNewPos = this.mesh.position.clone().add(direction.clone().multiplyScalar(amount));
+
+        // Apply friction if needed
+        const frictionFactor = CONFIG.combat.movement.frictionFactor || 0.25;
+        const finalAmount = this.calculateMovementWithFriction(
+            amount,
+            direction,
+            potentialNewPos,
+            attacker.mesh.position,
+            frictionFactor,
+            this.collisionRadius,
+            attacker.collisionRadius
+        );
+
+        const pushVector = direction.clone().multiplyScalar(finalAmount);
+
+        // Apply pushback
+        this.mesh.position.add(pushVector);
+
+        // Keep within arena bounds
+        if (this.mesh.position.length() > 20) {
+            this.mesh.position.setLength(20);
+        }
+
+        // Update collision capsule after pushback
+        this.updateCollisionCapsule();
+
+        return finalAmount;
+    }
+
+    /**
+     * Apply forward movement for attacker when hit connects
+     * @param {number} amount - Base forward movement amount
+     * @param {THREE.Vector3} direction - Normalized forward direction (toward target)
+     * @param {Fighter} target - The target fighter
+     * @returns {number} - Actual forward movement amount applied (after friction)
+     */
+    applyForwardMovement(amount, direction, target) {
+        if (!target || !target.mesh) return 0;
+
+        // Calculate potential new position
+        const potentialNewPos = this.mesh.position.clone().add(direction.clone().multiplyScalar(amount));
+
+        // Apply friction if needed (slightly more friction for forward movement)
+        const frictionFactor = CONFIG.combat.movement.forwardFrictionFactor || 0.3;
+        const finalAmount = this.calculateMovementWithFriction(
+            amount,
+            direction,
+            potentialNewPos,
+            target.mesh.position,
+            frictionFactor,
+            this.collisionRadius,
+            target.collisionRadius
+        );
+
+        const forwardVector = direction.clone().multiplyScalar(finalAmount);
+
+        // Apply forward movement
+        this.mesh.position.add(forwardVector);
+
+        // Keep within arena bounds
+        if (this.mesh.position.length() > 20) {
+            this.mesh.position.setLength(20);
+        }
+
+        // Update collision capsule after forward movement
+        this.updateCollisionCapsule();
+
+        return finalAmount;
+    }
+
     takeDamage(amt, type, attacker) {
         this.hp = Math.max(0, this.hp - amt);
         // Gain stamina when getting hit - more stamina for heavier hits
@@ -738,40 +880,21 @@ export class Fighter {
         this.st = Math.min(this.maxSt, this.st + staminaGainOnHit);
         
         // Pushback when hit - push away from attacker with friction
+        let pushbackAmount = 0;
         if (attacker && attacker.mesh) {
             const pushDirection = new THREE.Vector3().subVectors(this.mesh.position, attacker.mesh.position);
             pushDirection.y = 0; // Keep pushback horizontal
             if (pushDirection.lengthSq() > 0) {
                 pushDirection.normalize();
                 
-                // Increased pushback amounts: light = smaller, heavy = larger
-                let pushAmount = this.isHeavyAttack(type) ? 1.5 : 0.8; // Much larger pushback
+                // Get pushback amount from config based on attack type
+                const isHeavy = this.isHeavyAttack(type);
+                const basePushAmount = isHeavy 
+                    ? CONFIG.combat.movement.pushback.heavy 
+                    : CONFIG.combat.movement.pushback.light;
                 
-                // Calculate potential new position
-                const potentialNewPos = this.mesh.position.clone().add(pushDirection.clone().multiplyScalar(pushAmount));
-                
-                // Check if pushback would cause collision with attacker (friction effect)
-                const distanceAfterPush = potentialNewPos.distanceTo(attacker.mesh.position);
-                const minCollisionDistance = this.collisionRadius + attacker.collisionRadius;
-                
-                // If pushback would cause collision, apply significant friction (reduce pushback)
-                if (distanceAfterPush < minCollisionDistance * 1.2) { // 1.2x for a bit of buffer
-                    const frictionFactor = 0.25; // Reduce to 25% when colliding (strong friction)
-                    pushAmount *= frictionFactor;
-                }
-                
-                const pushVector = pushDirection.multiplyScalar(pushAmount);
-                
-                // Apply pushback
-                this.mesh.position.add(pushVector);
-                
-                // Keep within arena bounds
-                if (this.mesh.position.length() > 20) {
-                    this.mesh.position.setLength(20);
-                }
-                
-                // Update collision capsule after pushback
-                this.updateCollisionCapsule();
+                // Apply pushback using centralized method
+                pushbackAmount = this.applyPushback(basePushAmount, pushDirection, attacker);
             }
         }
         
@@ -785,7 +908,9 @@ export class Fighter {
         }
         this.flashColor();
         this.updateUI();
-        return this.state;
+        
+        // Return both state and pushback amount for combo system
+        return { state: this.state, pushbackAmount };
     }
 
     flashColor() {
@@ -857,7 +982,7 @@ export class Fighter {
         const animCandidates = attackInfo.animations || [];
         const chosenAnim = animCandidates.find(name => this.actions[name]) || animCandidates[0];
         const fade = isChain ? Math.min(this.animationFade, 0.05) : this.animationFade;
-        this.play(chosenAnim, fade);
+        this.play(chosenAnim, fade, false, isChain); // Pass isChain as isCombo parameter
         if (!this.actions[chosenAnim]) {
             // Safety: if no animation was found, don't get stuck in ATTACK
             this.state = 'IDLE';

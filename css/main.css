@@ -158,3 +158,234 @@ button {
         inset 0 0 10px rgba(255, 204, 0, 0.2);
 }
 
+/* VICTORY SCREEN */
+.victory-screen {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    max-width: 1400px;
+    padding: 40px;
+    pointer-events: auto;
+}
+
+.victory-title {
+    font-size: 6em;
+    font-weight: 900;
+    color: #ffcc00;
+    text-transform: uppercase;
+    font-style: italic;
+    text-shadow: 
+        0 0 20px rgba(255, 204, 0, 0.8),
+        0 0 40px rgba(255, 204, 0, 0.6);
+    margin-bottom: 40px;
+    animation: popIn 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+
+.victory-content {
+    display: flex;
+    gap: 60px;
+    justify-content: center;
+    align-items: center;
+    width: 100%;
+    margin-bottom: 50px;
+    animation: fadeInUp 0.6s ease-out 0.2s both;
+}
+
+.victory-character {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 20px;
+    padding: 30px;
+    border: 3px solid;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(10px);
+    min-width: 400px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
+}
+
+.victory-character.winner {
+    border-color: #ffcc00;
+    box-shadow: 
+        0 0 30px rgba(255, 204, 0, 0.5),
+        inset 0 0 20px rgba(255, 204, 0, 0.1);
+}
+
+.victory-character.loser {
+    border-color: #666;
+    box-shadow: 
+        0 0 30px rgba(100, 100, 100, 0.3),
+        inset 0 0 20px rgba(100, 100, 100, 0.1);
+}
+
+.character-label {
+    font-size: 1.5em;
+    font-weight: 900;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+}
+
+.victory-character.winner .character-label {
+    color: #ffcc00;
+    text-shadow: 0 0 10px rgba(255, 204, 0, 0.8);
+}
+
+.victory-character.loser .character-label {
+    color: #888;
+    text-shadow: 0 0 10px rgba(136, 136, 136, 0.5);
+}
+
+.character-name {
+    font-size: 2.5em;
+    font-weight: 900;
+    text-transform: uppercase;
+    color: #fff;
+    text-shadow: 0 0 15px rgba(255, 255, 255, 0.6);
+}
+
+.character-images {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    align-items: center;
+    width: 100%;
+}
+
+.character-victory-img,
+.character-defeat-img,
+.character-portrait-img {
+    max-width: 100%;
+    height: auto;
+    image-rendering: pixelated;
+    image-rendering: -moz-crisp-edges;
+    image-rendering: crisp-edges;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.5);
+}
+
+.character-victory-img {
+    max-height: 300px;
+}
+
+.character-defeat-img {
+    max-height: 300px;
+    filter: grayscale(0.3) brightness(0.7);
+}
+
+.character-portrait-img {
+    max-height: 200px;
+}
+
+.victory-buttons {
+    display: flex;
+    gap: 30px;
+    justify-content: center;
+    margin-top: 20px;
+    animation: fadeInUp 0.6s ease-out 0.4s both;
+}
+
+.victory-btn {
+    background: #ffcc00;
+    color: #000;
+    border: none;
+    padding: 18px 40px;
+    font-size: 1.3em;
+    font-weight: 900;
+    cursor: pointer;
+    text-transform: uppercase;
+    clip-path: polygon(0 0, 100% 0, 95% 100%, 5% 100%);
+    transition: all 0.2s ease;
+    font-family: 'Courier New', monospace;
+    box-shadow:
+        0 0 15px rgba(255, 204, 0, 0.6),
+        inset 0 0 15px rgba(255, 255, 255, 0.2);
+}
+
+.victory-btn:hover {
+    background: #ffdd22;
+    transform: scale(1.05);
+    box-shadow:
+        0 0 25px rgba(255, 204, 0, 0.8),
+        inset 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+.victory-btn:active {
+    transform: scale(0.98);
+}
+
+.back-btn {
+    background: #00ccff;
+    box-shadow:
+        0 0 15px rgba(0, 204, 255, 0.6),
+        inset 0 0 15px rgba(255, 255, 255, 0.2);
+}
+
+.back-btn:hover {
+    background: #22ddff;
+    box-shadow:
+        0 0 25px rgba(0, 204, 255, 0.8),
+        inset 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(30px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 1200px) {
+    .victory-content {
+        flex-direction: column;
+        gap: 40px;
+    }
+    
+    .victory-character {
+        min-width: 350px;
+    }
+    
+    .victory-title {
+        font-size: 4em;
+    }
+}
+
+@media (max-width: 768px) {
+    .victory-screen {
+        padding: 20px;
+    }
+    
+    .victory-title {
+        font-size: 3em;
+        margin-bottom: 30px;
+    }
+    
+    .victory-character {
+        min-width: 300px;
+        padding: 20px;
+    }
+    
+    .character-name {
+        font-size: 2em;
+    }
+    
+    .victory-buttons {
+        flex-direction: column;
+        gap: 20px;
+        width: 100%;
+        max-width: 300px;
+    }
+    
+    .victory-btn {
+        width: 100%;
+        padding: 15px 30px;
+        font-size: 1.1em;
+    }
+}
+

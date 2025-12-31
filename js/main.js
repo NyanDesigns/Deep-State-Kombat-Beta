@@ -498,6 +498,17 @@ async function spawnFighters() {
 }
 
 function restartFight() {
+    // Hide end screen and remove keyboard handler
+    const endScreen = document.getElementById('end-screen');
+    if (endScreen) {
+        endScreen.classList.remove('show');
+    }
+    // Remove keyboard handler
+    if (uiManager && uiManager.endScreenKeyboardHandler) {
+        window.removeEventListener('keydown', uiManager.endScreenKeyboardHandler);
+        uiManager.endScreenKeyboardHandler = null;
+    }
+
     if (fighters.length !== 2) return;
 
     if (inputHandler) {
@@ -511,6 +522,10 @@ function restartFight() {
         f.hp = f.maxHp;
         f.st = f.maxSt;
         f.state = 'IDLE';
+        // Resume animation mixer if it was frozen
+        if (f.mixer) {
+            f.mixer.timeScale = 1;
+        }
         f.play('idle', f.animationFade);
         f.updateUI();
     });
@@ -550,6 +565,17 @@ function loadNewModels() {
     // Hide HUD first
     uiManager.hideHUD();
     
+    // Hide end screen and remove keyboard handler
+    const endScreen = document.getElementById('end-screen');
+    if (endScreen) {
+        endScreen.classList.remove('show');
+    }
+    // Remove keyboard handler
+    if (uiManager && uiManager.endScreenKeyboardHandler) {
+        window.removeEventListener('keydown', uiManager.endScreenKeyboardHandler);
+        uiManager.endScreenKeyboardHandler = null;
+    }
+    
     // Clear the victory overlay
     const overlay = document.getElementById('center-overlay');
     if (overlay) {
@@ -580,7 +606,18 @@ function loadNewModels() {
 function endGame(winnerId) {
     if (gameState.getState() === 'OVER') return;
 
+    // Freeze the game state - don't play win/die animations, just freeze current state
     gameState.setState('OVER');
+
+    // Stop all animation mixers to freeze the frame
+    if (fighters.length === 2) {
+        fighters.forEach(fighter => {
+            if (fighter.mixer) {
+                // Pause the mixer at current time to freeze animation
+                fighter.mixer.timeScale = 0;
+            }
+        });
+    }
 
     let winnerFighter = null;
     let loserFighter = null;
@@ -588,12 +625,7 @@ function endGame(winnerId) {
     if (fighters.length === 2 && winnerId) {
         winnerFighter = winnerId === 'p1' ? fighters[0] : fighters[1];
         loserFighter = winnerId === 'p1' ? fighters[1] : fighters[0];
-        winnerFighter.state = 'WIN';
-        winnerFighter.play('win', winnerFighter.animationFade);
-        if (loserFighter) {
-            loserFighter.state = 'DEAD';
-            loserFighter.play('die', loserFighter.animationFade);
-        }
+        // Don't change state or play animations - just freeze current state
     }
 
     uiManager.showVictory(winnerId, winnerFighter, loserFighter);
@@ -627,19 +659,26 @@ function animate() {
     requestAnimationFrame(animate);
 
     const dt = sceneManager.getDeltaTime();
+    const state = gameState.getState();
 
     combatSystem.update(dt);
     effectsSystem.update(dt);
     previewScene.update();
 
-    if (gameState.getState() === 'PAUSED') {
+    if (state === 'PAUSED') {
+        renderSystem.render(combatSystem.getHitStop());
+        return;
+    }
+
+    // Freeze frame when game is over - don't update fighters or animations
+    if (state === 'OVER') {
+        // Still render the frozen scene
         renderSystem.render(combatSystem.getHitStop());
         return;
     }
 
     if (fighters.length === 2) {
         const keys = inputHandler.getKeys();
-        const state = gameState.getState();
 
         fighters[0].update(dt, fighters[1], state, keys, sceneManager.camera, collisionSystem, inputHandler);
         fighters[1].update(dt, fighters[0], state, keys, sceneManager.camera, collisionSystem, inputHandler);

@@ -145,8 +145,9 @@ export class Fighter {
 
         // Hitbox system - using spheres with character-specific sizes (larger radii for easier hits)
         // Smaller base hurtboxes for tighter collisions
-        const headRadius = (characterConfig?.hitboxes?.head || 0.28);
-        const torsoRadius = (characterConfig?.hitboxes?.torso || 0.4);
+        // All hitbox radii are doubled for larger hit detection
+        const headRadius = (characterConfig?.hitboxes?.head || 0.28) * 2;
+        const torsoRadius = (characterConfig?.hitboxes?.torso || 0.4) * 2;
 
         this.hurtSpheres = {
             head: new THREE.Sphere(new THREE.Vector3(), headRadius),
@@ -158,22 +159,22 @@ export class Fighter {
         };
 
         // Multi-sphere attack hitboxes: each hand has fist+elbow, each leg has foot+knee
-        // Made much bigger for easier hits
-        const handSizes = characterConfig?.hitboxes?.attackHands || [0.32, 0.28, 0.32, 0.28];
-        const legSizes = characterConfig?.hitboxes?.attackLegs || [0.38, 0.32, 0.38, 0.32];
+        // Made much bigger for easier hits - all radii doubled
+        const handSizes = (characterConfig?.hitboxes?.attackHands || [0.32, 0.28, 0.32, 0.28]).map(size => size * 2);
+        const legSizes = (characterConfig?.hitboxes?.attackLegs || [0.38, 0.32, 0.38, 0.32]).map(size => size * 2);
 
         this.attackSpheres = {
             hands: [
-                new THREE.Sphere(new THREE.Vector3(), handSizes[0] || 0.25), // Left hand - fist
-                new THREE.Sphere(new THREE.Vector3(), handSizes[1] || 0.22), // Left hand - elbow
-                new THREE.Sphere(new THREE.Vector3(), handSizes[2] || 0.25), // Right hand - fist
-                new THREE.Sphere(new THREE.Vector3(), handSizes[3] || 0.22)  // Right hand - elbow
+                new THREE.Sphere(new THREE.Vector3(), handSizes[0] || 0.5), // Left hand - fist (doubled from 0.25)
+                new THREE.Sphere(new THREE.Vector3(), handSizes[1] || 0.44), // Left hand - elbow (doubled from 0.22)
+                new THREE.Sphere(new THREE.Vector3(), handSizes[2] || 0.5), // Right hand - fist (doubled from 0.25)
+                new THREE.Sphere(new THREE.Vector3(), handSizes[3] || 0.44)  // Right hand - elbow (doubled from 0.22)
             ],
             legs: [
-                new THREE.Sphere(new THREE.Vector3(), legSizes[0] || 0.28), // Left leg - foot
-                new THREE.Sphere(new THREE.Vector3(), legSizes[1] || 0.24), // Left leg - knee
-                new THREE.Sphere(new THREE.Vector3(), legSizes[2] || 0.28), // Right leg - foot
-                new THREE.Sphere(new THREE.Vector3(), legSizes[3] || 0.24)  // Right leg - knee
+                new THREE.Sphere(new THREE.Vector3(), legSizes[0] || 0.56), // Left leg - foot (doubled from 0.28)
+                new THREE.Sphere(new THREE.Vector3(), legSizes[1] || 0.48), // Left leg - knee (doubled from 0.24)
+                new THREE.Sphere(new THREE.Vector3(), legSizes[2] || 0.56), // Right leg - foot (doubled from 0.28)
+                new THREE.Sphere(new THREE.Vector3(), legSizes[3] || 0.48)  // Right leg - knee (doubled from 0.24)
             ]
         };
         this.initHitboxes();
@@ -1309,6 +1310,9 @@ export class Fighter {
     }
 
     crouch() {
+        // TEMPORARILY DISABLED: Crouch feature disabled for both player and AI
+        return;
+        
         // State checks - prevent crouching if in invalid states
         if (this.state === 'ATTACK' || this.state === 'STUN' || this.state === 'DEAD' || this.state === 'WIN') return;
         if (!this.actions['crouch']) return; // Animation not loaded
@@ -1396,18 +1400,12 @@ export class Fighter {
     }
 
     updateInput(dt, keys, camera, inputHandler = null) {
-        // If already crouched or exiting, handle that first
+        // TEMPORARILY DISABLED: Crouch feature disabled for both player and AI
+        // If already crouched or exiting, handle that first - but only to exit, not to enter
         if (this.state === 'CROUCH') {
-            // Check for crouch release (S key)
-            const isCrouchHeld = this.keyDown(keys, 's');
-            if (!isCrouchHeld) {
-                // Exit crouch if S is released while in CROUCH state
-                this.exitCrouch();
-                return; // Don't process other inputs while exiting crouch
-            }
-            // While crouched, can't move or attack
-            this.desiredVelocity.set(0, 0, 0);
-            return; // Don't process other inputs while crouched
+            // If somehow in crouch state, exit it immediately
+            this.exitCrouch();
+            return; // Don't process other inputs while exiting crouch
         }
         
         if (this.state === 'CROUCH_EXITING') {
@@ -1416,15 +1414,16 @@ export class Fighter {
             return; // Don't process other inputs while exiting
         }
         
+        // TEMPORARILY DISABLED: Crouch input handling disabled
         // Check for crouch - use edge detection to enter (only trigger once per key press)
         // But use keyDown check to stay crouched (key is held)
-        if (inputHandler && (this.state === 'IDLE' || this.state === 'WALK')) {
-            // Only enter crouch on initial key press (edge-triggered)
-            if (inputHandler.consumeKey('s')) {
-                this.crouch();
-                return; // Don't process other inputs while entering crouch
-            }
-        }
+        // if (inputHandler && (this.state === 'IDLE' || this.state === 'WALK')) {
+        //     // Only enter crouch on initial key press (edge-triggered)
+        //     if (inputHandler.consumeKey('s')) {
+        //         this.crouch();
+        //         return; // Don't process other inputs while entering crouch
+        //     }
+        // }
 
         // Attack controls (only when not crouched) - use edge-triggered input
         if (inputHandler) {

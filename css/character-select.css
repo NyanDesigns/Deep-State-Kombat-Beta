@@ -53,15 +53,15 @@
         opacity: 1;
         transform: translateX(-50%) scale(1);
         top: auto;
-        bottom: 100px;
+        bottom: 85px;
     }
 }
 
 #character-grid {
     display: flex;
     flex-direction: column;
-    gap: 30px;
-    padding: 50px;
+    gap: 26px;
+    padding: 43px;
     /* Transparent background with subtle digital grid */
     background: 
         repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.03) 0px, rgba(255, 255, 255, 0.03) 1px, transparent 1px, transparent 20px),
@@ -70,19 +70,19 @@
     position: relative;
     border-radius: 0;
     /* Main HUD Frame using multiple thick borders and notches */
-    border: 4px solid rgba(255, 165, 0, 0.4);
+    border: 3px solid rgba(255, 165, 0, 0.4);
     /* Clip to create tech-notched corners */
     clip-path: polygon(
-        0 20px, 20px 0, 
-        calc(100% - 20px) 0, 100% 20px, 
-        100% calc(100% - 20px), calc(100% - 20px) 100%, 
-        20px 100%, 0 calc(100% - 20px)
+        0 17px, 17px 0, 
+        calc(100% - 17px) 0, 100% 17px, 
+        100% calc(100% - 17px), calc(100% - 17px) 100%, 
+        17px 100%, 0 calc(100% - 17px)
     );
     box-shadow: 
         0 0 0 2px rgba(255, 165, 0, 0.2),
-        inset 0 0 60px rgba(0, 0, 0, 0.8);
-    width: 820px;
-    min-width: 820px;
+        inset 0 0 51px rgba(0, 0, 0, 0.8);
+    width: 697px;
+    min-width: 697px;
     height: auto;
     min-height: auto;
     box-sizing: border-box;
@@ -102,24 +102,24 @@
 #character-grid::after {
     content: '';
     position: absolute;
-    width: 60px;
-    height: 60px;
+    width: 51px;
+    height: 51px;
     pointer-events: none;
     z-index: 5;
 }
 
 #character-grid::before {
-    top: -4px;
-    left: -4px;
-    border-top: 8px solid #ffa500;
-    border-left: 8px solid #ffa500;
+    top: -3px;
+    left: -3px;
+    border-top: 7px solid #ffa500;
+    border-left: 7px solid #ffa500;
 }
 
 #character-grid::after {
-    bottom: -4px;
-    right: -4px;
-    border-bottom: 8px solid #ffa500;
-    border-right: 8px solid #ffa500;
+    bottom: -3px;
+    right: -3px;
+    border-bottom: 7px solid #ffa500;
+    border-right: 7px solid #ffa500;
 }
 
 /* Inner brackets (opposite corners) */
@@ -127,24 +127,24 @@
 #character-grid-container::after {
     content: '';
     position: absolute;
-    width: 60px;
-    height: 60px;
+    width: 51px;
+    height: 51px;
     pointer-events: none;
     z-index: 15;
 }
 
 #character-grid-container::before {
-    top: -10px;
-    right: -10px;
-    border-top: 8px solid #ffa500;
-    border-right: 8px solid #ffa500;
+    top: -9px;
+    right: -9px;
+    border-top: 7px solid #ffa500;
+    border-right: 7px solid #ffa500;
 }
 
 #character-grid-container::after {
-    bottom: -10px;
-    left: -10px;
-    border-bottom: 8px solid #ffa500;
-    border-left: 8px solid #ffa500;
+    bottom: -9px;
+    left: -9px;
+    border-bottom: 7px solid #ffa500;
+    border-left: 7px solid #ffa500;
 }
 
 /* Opacity handled by parent container during animation */
@@ -160,7 +160,7 @@
 .character-grid-row {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 35px;
+    gap: 30px;
     overflow: visible;
     justify-items: center;
     align-items: center;
@@ -176,10 +176,10 @@
     text-align: center;
     cursor: pointer;
     transition: all 0.3s ease;
-    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.8),
-                inset 0 0 20px rgba(0, 0, 0, 0.5);
-    width: 200px;
-    height: 240px;
+    box-shadow: 0 5px 17px rgba(0, 0, 0, 0.8),
+                inset 0 0 17px rgba(0, 0, 0, 0.5);
+    width: 170px;
+    height: 204px;
     position: relative;
     overflow: visible;
     user-select: none;
@@ -331,9 +331,9 @@
     right: 0;
     background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.7) 70%, transparent 100%);
     color: #fff;
-    font-size: 1.1em;
+    font-size: 0.935em;
     font-weight: bold;
-    padding: 12px 8px 8px 8px;
+    padding: 10px 7px 7px 7px;
     text-transform: uppercase;
     letter-spacing: 2px;
     text-shadow: 0 0 10px #000,
@@ -856,11 +856,11 @@
 
 .random-selection-card .random-icon,
 .add-new-character-card .add-icon {
-    font-size: 4em;
+    font-size: 3.4em;
     color: #ffcc00;
     text-shadow: 0 0 20px #ffcc00,
                  0 0 40px #ffa500;
-    margin-bottom: 10px;
+    margin-bottom: 9px;
 }
 
 .random-selection-card:hover .random-icon,
@@ -875,11 +875,11 @@
     position: static;
     background: none;
     color: #ffcc00;
-    font-size: 1.2em;
+    font-size: 1.02em;
 }
 
 .add-new-character-card .add-icon {
-    font-size: 5em;
+    font-size: 4.25em;
     font-weight: bold;
 }
 
@@ -896,75 +896,75 @@
 /* Responsive layout */
 @media (max-width: 1200px) {
     .character-card {
-        width: 180px;
-        height: 220px;
+        width: 153px;
+        height: 187px;
     }
 
     #character-grid {
-        padding: 40px;
-        gap: 30px;
-        width: 750px;
-        min-width: 750px;
+        padding: 34px;
+        gap: 26px;
+        width: 638px;
+        min-width: 638px;
         height: auto;
         min-height: auto;
     }
 
     .character-grid-row {
-        gap: 30px;
+        gap: 26px;
     }
 }
 
 @media (max-width: 850px) {
     .character-card {
-        width: 160px;
-        height: 200px;
+        width: 136px;
+        height: 170px;
     }
 
     #character-grid {
-        padding: 35px;
-        gap: 25px;
-        width: 680px;
-        min-width: 680px;
+        padding: 30px;
+        gap: 21px;
+        width: 578px;
+        min-width: 578px;
         height: auto;
         min-height: auto;
     }
 
     .character-grid-row {
-        gap: 25px;
+        gap: 21px;
     }
 
     .character-card .character-name {
-        font-size: 0.95em;
+        font-size: 0.81em;
     }
 }
 
 @media (max-width: 600px) {
     .character-card {
-        width: 140px;
-        height: 180px;
+        width: 119px;
+        height: 153px;
     }
 
     #character-grid {
-        padding: 25px;
-        gap: 20px;
-        width: 580px;
-        min-width: 580px;
+        padding: 21px;
+        gap: 17px;
+        width: 493px;
+        min-width: 493px;
         height: auto;
         min-height: auto;
     }
 
     .character-grid-row {
-        gap: 20px;
+        gap: 17px;
     }
 
     .character-card .character-name {
-        font-size: 0.85em;
-        padding: 8px 4px 4px 4px;
+        font-size: 0.72em;
+        padding: 7px 3px 3px 3px;
     }
 
     .random-selection-card .random-icon,
     .add-new-character-card .add-icon {
-        font-size: 3em;
+        font-size: 2.55em;
     }
 }
 

@@ -51,8 +51,8 @@
     position: absolute;
     top: 60%;
     transform: translateY(-50%);
-    width: 1600px;
-    height: 1600px;
+    width: 1360px;
+    height: 1360px;
     object-fit: contain;
     z-index: 1;
     filter: drop-shadow(0 0 30px rgba(255, 100, 0, 0.5))
@@ -383,8 +383,8 @@
 /* Character Info Panel (Bottom Left) - HUD Redesign */
 #character-info-panel {
     position: fixed;
-    bottom: calc(80px + 80px + 60px);
-    left: 50px;
+    bottom: calc(68px + 68px + 51px);
+    left: 43px;
     z-index: 15;
     /* Transparent digital HUD background */
     background: 
@@ -392,11 +392,11 @@
         rgba(15, 15, 20, 0.8);
     border: 2px solid rgba(255, 165, 0, 0.3);
     border-radius: 0;
-    padding: 25px 30px;
-    width: 280px;
-    min-width: 280px;
-    max-width: 280px;
-    min-height: 120px;
+    padding: 21px 26px;
+    width: 238px;
+    min-width: 238px;
+    max-width: 238px;
+    min-height: 102px;
     box-shadow: 0 0 30px rgba(0, 0, 0, 0.8);
     backdrop-filter: blur(10px);
     box-sizing: border-box;
@@ -406,10 +406,10 @@
     transform-origin: left bottom;
     /* Tech-notched corners */
     clip-path: polygon(
-        0 15px, 15px 0, 
-        calc(100% - 15px) 0, 100% 15px, 
-        100% calc(100% - 15px), calc(100% - 15px) 100%, 
-        15px 100%, 0 calc(100% - 15px)
+        0 13px, 13px 0, 
+        calc(100% - 13px) 0, 100% 13px, 
+        100% calc(100% - 13px), calc(100% - 13px) 100%, 
+        13px 100%, 0 calc(100% - 13px)
     );
     transition: none; /* Remove transition, use animation instead */
 }
@@ -419,8 +419,8 @@
 #character-info-panel::after {
     content: '';
     position: absolute;
-    width: 30px;
-    height: 30px;
+    width: 26px;
+    height: 26px;
     pointer-events: none;
     z-index: 5;
 }
@@ -428,15 +428,15 @@
 #character-info-panel::before {
     top: 0;
     left: 0;
-    border-top: 6px solid #ffa500;
-    border-left: 6px solid #ffa500;
+    border-top: 5px solid #ffa500;
+    border-left: 5px solid #ffa500;
 }
 
 #character-info-panel::after {
     bottom: 0;
     right: 0;
-    border-bottom: 6px solid #ffa500;
-    border-right: 6px solid #ffa500;
+    border-bottom: 5px solid #ffa500;
+    border-right: 5px solid #ffa500;
 }
 
 /* Pop-in animation for info panel */
@@ -468,28 +468,28 @@
 }
 
 
-.character-info-content {
+    .character-info-content {
     display: flex;
     flex-direction: column;
-    gap: 12px;
+    gap: 10px;
 }
 
 .character-name-display {
     font-family: 'Arial Black', 'Franklin Gothic Bold', 'Impact', sans-serif;
-    font-size: 5em;
+    font-size: 4.25em;
     font-weight: 900;
     color: #fff;
     text-transform: uppercase;
-    letter-spacing: 8px;
+    letter-spacing: 7px;
     text-shadow: 
+        3px 3px 0px #000,
         4px 4px 0px #000,
         5px 5px 0px #000,
         6px 6px 0px #000,
-        7px 7px 0px #000,
-        8px 8px 6px rgba(0, 0, 0, 0.8);
+        7px 7px 5px rgba(0, 0, 0, 0.8);
     line-height: 1.2;
     position: fixed;
-    bottom: 40px;
+    bottom: 34px;
     z-index: 16;
     margin: 0;
     opacity: 0;
@@ -527,26 +527,26 @@
 }
 
 .character-name-p1 {
-    left: 50px;
+    left: 43px;
 }
 
 .character-name-p2 {
-    right: 50px;
+    right: 43px;
     left: auto;
 }
 
 /* Character Record & Difficulty - Digital Style */
 .character-record {
     font-family: 'Courier New', monospace;
-    font-size: 1.4em;
+    font-size: 1.19em;
     font-weight: bold;
     color: #ffcc00;
     text-shadow: 0 0 10px rgba(255, 165, 0, 0.5);
     letter-spacing: 1px;
     background: rgba(255, 165, 0, 0.1);
-    padding: 4px 8px;
+    padding: 3px 7px;
     border-left: 3px solid #ffa500;
-    margin-bottom: 8px;
+    margin-bottom: 7px;
     opacity: 0;
     visibility: hidden;
     transition: opacity 0.4s ease 0.2s, visibility 0.4s ease 0.2s;
@@ -559,14 +559,14 @@
 
 .character-difficulty {
     font-family: 'Courier New', monospace;
-    font-size: 1.2em;
+    font-size: 1.02em;
     font-weight: bold;
     color: #00ff00;
     text-shadow: 0 0 10px rgba(0, 255, 0, 0.5);
     text-transform: uppercase;
     letter-spacing: 2px;
     background: rgba(0, 255, 0, 0.1);
-    padding: 4px 8px;
+    padding: 3px 7px;
     border-left: 3px solid #00ff00;
     opacity: 0;
     visibility: hidden;
@@ -581,14 +581,14 @@
 /* CPU Player Indicator (Top Right) */
 #press-start-text {
     position: fixed;
-    top: 30px;
-    right: 30px;
+    top: 26px;
+    right: 26px;
     z-index: 15;
-    font-size: 1.8em;
+    font-size: 1.53em;
     font-weight: 900;
     color: #fff;
     text-transform: uppercase;
-    letter-spacing: 4px;
+    letter-spacing: 3px;
     text-shadow: 0 0 20px #ff0000,
                  0 0 40px #ff6600,
                  0 4px 8px rgba(0, 0, 0, 0.8);
@@ -607,14 +607,14 @@
 /* Main Title - Game Logo Style */
 #setup-screen h1.game-title-logo {
     color: #fff;
-    font-size: 6em; /* Final size */
+    font-size: 5.1em; /* Final size */
     font-weight: 900;
     letter-spacing: 0;
     margin: 0;
     text-align: center;
     z-index: 10;
     position: fixed;
-    top: 80px; /* Final position */
+    top: 68px; /* Final position */
     left: 50%;
     transform: translate(-50%, 0); /* Center horizontally */
     line-height: 1;
@@ -659,16 +659,16 @@
     font-family: 'Impact', 'Arial Black', 'Franklin Gothic Bold', sans-serif;
     font-size: 0.9em;
     font-weight: 900;
-    letter-spacing: 4px;
+    letter-spacing: 3px;
     color: #ff0000;
     text-shadow: 
+        7px 7px 0px #000,
         8px 8px 0px #000,
         9px 9px 0px #000,
         10px 10px 0px #000,
-        11px 11px 0px #000,
-        12px 12px 8px rgba(0, 0, 0, 0.8);
+        11px 11px 7px rgba(0, 0, 0, 0.8);
     transform: skew(-5deg, 0deg);
-    margin-bottom: 15px;
+    margin-bottom: 13px;
 }
 
 .title-kombat {
@@ -678,30 +678,30 @@
     letter-spacing: 2px;
     color: #ffffff;
     text-shadow: 
+        7px 7px 0px #000,
         8px 8px 0px #000,
         9px 9px 0px #000,
         10px 10px 0px #000,
-        11px 11px 0px #000,
-        12px 12px 8px rgba(0, 0, 0, 0.8);
+        11px 11px 7px rgba(0, 0, 0, 0.8);
     transform: skew(3deg, 0deg);
-    margin-bottom: -8px;
+    margin-bottom: -7px;
 }
 
 /* Ready Text for Selected Players */
 .ready-text {
     position: fixed;
     font-family: 'Arial Black', 'Franklin Gothic Bold', 'Impact', sans-serif;
-    font-size: 3.5em;
+    font-size: 2.975em;
     font-weight: 900;
     color: #ffcc00;
     text-transform: uppercase;
-    letter-spacing: 8px;
+    letter-spacing: 7px;
     text-shadow: 
+        3px 3px 0px #000,
         4px 4px 0px #000,
         5px 5px 0px #000,
         6px 6px 0px #000,
-        7px 7px 0px #000,
-        8px 8px 6px rgba(0, 0, 0, 0.8),
+        7px 7px 5px rgba(0, 0, 0, 0.8),
         0 0 20px rgba(255, 204, 0, 0.6);
     z-index: 15;
     opacity: 0;
@@ -715,30 +715,30 @@
 }
 
 .ready-text-p1 {
-    top: 40px;
-    left: 50px;
+    top: 34px;
+    left: 43px;
 }
 
 .ready-text-p2 {
-    top: 40px;
-    right: 50px;
+    top: 34px;
+    right: 43px;
 }
 
 /* Coming Soon Text for Unavailable Characters */
 .coming-soon-text {
     position: fixed;
     font-family: 'Arial Black', 'Franklin Gothic Bold', 'Impact', sans-serif;
-    font-size: 3.5em;
+    font-size: 2.975em;
     font-weight: 900;
     color: #ffffff;
     text-transform: uppercase;
-    letter-spacing: 8px;
+    letter-spacing: 7px;
     text-shadow: 
+        3px 3px 0px #000,
         4px 4px 0px #000,
         5px 5px 0px #000,
         6px 6px 0px #000,
-        7px 7px 0px #000,
-        8px 8px 6px rgba(0, 0, 0, 0.8);
+        7px 7px 5px rgba(0, 0, 0, 0.8);
     z-index: 15;
     opacity: 0;
     visibility: hidden;
@@ -756,17 +756,17 @@
 }
 
 .coming-soon-text.big {
-    font-size: 4.5em;
+    font-size: 3.825em;
 }
 
 .coming-soon-text-p1 {
-    top: 40px;
-    left: 50px;
+    top: 34px;
+    left: 43px;
 }
 
 .coming-soon-text-p2 {
-    top: 40px;
-    right: 50px;
+    top: 34px;
+    right: 43px;
 }
 
 @keyframes coming-soon-flash {
@@ -794,22 +794,22 @@
 /* Choose Your Fighter Text */
 #choose-fighter-text {
     font-family: 'Arial Black', 'Franklin Gothic Bold', 'Impact', sans-serif;
-    font-size: 2em;
+    font-size: 1.7em;
     font-weight: 900;
     color: #fff;
     text-transform: uppercase;
-    letter-spacing: 8px;
+    letter-spacing: 7px;
     text-shadow: 
+        3px 3px 0px #000,
         4px 4px 0px #000,
         5px 5px 0px #000,
         6px 6px 0px #000,
-        7px 7px 0px #000,
-        8px 8px 6px rgba(0, 0, 0, 0.8);
+        7px 7px 5px rgba(0, 0, 0, 0.8);
     margin: 0;
     text-align: center;
     z-index: 10;
     position: fixed;
-    bottom: calc(80px + 650px + 20px);
+    bottom: calc(68px + 553px + 17px);
     left: 50%;
     transform: translateX(-50%) translateY(0); /* Final position */
     /* Initially hidden during loading - start above screen */
@@ -1012,21 +1012,21 @@ button:hover {
 #btn-start {
     background: linear-gradient(135deg, #00cc00 0%, #00ff00 100%);
     color: #000;
-    font-size: 2em;
+    font-size: 1.7em;
     font-weight: 900;
-    padding: 25px;
-    width: 450px;
+    padding: 21px;
+    width: 383px;
     max-width: 90%;
     display: none;
-    border: 4px solid #00ff00;
+    border: 3px solid #00ff00;
     border-radius: 0;
     box-shadow: 0 0 40px rgba(0, 255, 0, 0.8),
                 inset 0 0 20px rgba(255, 255, 255, 0.3);
     text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-    letter-spacing: 4px;
+    letter-spacing: 3px;
     z-index: 10;
     position: fixed;
-    bottom: 150px;
+    bottom: 128px;
     left: 50%;
     transform: translateX(-50%);
 }
@@ -1145,15 +1145,15 @@ button:hover {
 /* Responsive Design */
 @media (max-width: 1200px) {
     #character-info-panel {
-        width: 250px; /* Fixed width for responsive */
-        min-width: 250px;
-        max-width: 250px;
-        min-height: 110px;
-        padding: 20px 25px;
+        width: 213px; /* Fixed width for responsive */
+        min-width: 213px;
+        max-width: 213px;
+        min-height: 94px;
+        padding: 17px 21px;
     }
 
     .character-name-display {
-        font-size: 4.5em;
+        font-size: 3.825em;
     }
 
     .character-record {
@@ -1165,7 +1165,7 @@ button:hover {
     }
 
     #setup-screen h1.game-title-logo {
-        font-size: 4.8em; /* Final size after animation - bigger */
+        font-size: 4.08em; /* Final size after animation - bigger */
     }
     
     /* Adjust animation for responsive - slide in from top */
@@ -1200,11 +1200,11 @@ button:hover {
     }
 
     #choose-fighter-text {
-        font-size: 2em;
+        font-size: 1.7em;
     }
 
     #press-start-text {
-        font-size: 1.5em;
+        font-size: 1.28em;
     }
 
     .panel {
@@ -1262,13 +1262,13 @@ button:hover {
     }
 
     #press-start-text {
-        font-size: 1.2em;
-        top: 15px;
-        right: 15px;
+        font-size: 1.02em;
+        top: 13px;
+        right: 13px;
     }
 
     #setup-screen h1.game-title-logo {
-        font-size: 4.2em; /* Final size after animation - bigger */
+        font-size: 3.57em; /* Final size after animation - bigger */
     }
     
     /* Adjust animation for responsive - slide in from top */
@@ -1295,7 +1295,7 @@ button:hover {
     }
 
     #choose-fighter-text {
-        font-size: 1.8em;
+        font-size: 1.53em;
     }
 }
 
@@ -1337,7 +1337,7 @@ button:hover {
     }
 
     .character-name-display {
-        font-size: 3.5em;
+        font-size: 2.975em;
         letter-spacing: 2px;
     }
 
@@ -1350,7 +1350,7 @@ button:hover {
     }
 
     #setup-screen h1.game-title-logo {
-        font-size: 3em; /* Final size after animation - bigger */
+        font-size: 2.55em; /* Final size after animation - bigger */
     }
     
     /* Adjust animation for responsive - slide in from top */
@@ -1381,18 +1381,18 @@ button:hover {
     }
 
     #choose-fighter-text {
-        font-size: 1.5em;
+        font-size: 1.28em;
         letter-spacing: 3px;
     }
 
     #press-start-text {
-        font-size: 1em;
-        top: 10px;
-        right: 10px;
+        font-size: 0.85em;
+        top: 9px;
+        right: 9px;
     }
 
     #btn-start {
-        font-size: 1.5em;
-        padding: 20px;
+        font-size: 1.28em;
+        padding: 17px;
     }
 }

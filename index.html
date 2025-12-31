@@ -12,6 +12,7 @@
     <link rel="stylesheet" href="css/pause-menu.css">
     <link rel="stylesheet" href="css/debug.css">
     <link rel="stylesheet" href="css/character-select.css">
+    <link rel="stylesheet" href="css/end-screen.css">
 
     <script type="importmap">
         {
@@ -240,6 +241,44 @@
 
         <!-- Debug Info Panel -->
         <div id="debug-panel"></div>
+    </div>
+
+    <!-- End Screen -->
+    <div id="end-screen" style="display: none;">
+        <!-- Full-screen background character previews (PNG ONLY) -->
+        <div id="end-background-character-preview">
+            <!-- Winner Character Preview (Left Side) -->
+            <div id="winner-background-preview" class="player-background-preview">
+                <img id="winner-background-png-image" class="background-png p1-png" src="" alt="Winner Character Preview" style="display: none;">
+            </div>
+            <!-- Loser Character Preview (Right Side) -->
+            <div id="loser-background-preview" class="player-background-preview">
+                <img id="loser-background-png-image" class="background-png p2-png" src="" alt="Loser Character Preview" style="display: none;">
+            </div>
+            <div class="background-gradient-overlay"></div>
+        </div>
+
+        <!-- Character Name Display Winner (Bottom Left) -->
+        <div class="character-name-display character-name-winner"></div>
+
+        <!-- Character Name Display Loser (Bottom Right) -->
+        <div class="character-name-display character-name-loser"></div>
+
+        <!-- Winner Text (Top Left) -->
+        <div id="winner-text" class="winner-text">Winner</div>
+
+        <!-- Loser Text (Top Right) -->
+        <div id="loser-text" class="loser-text">Loser</div>
+
+        <!-- Victory Buttons -->
+        <div class="end-screen-buttons">
+            <button id="btn-restart-end" class="clickable victory-btn restart-btn">
+                Restart Fight
+            </button>
+            <button id="btn-back-selection-end" class="clickable victory-btn back-btn">
+                Back to Selection
+            </button>
+        </div>
     </div>
 
     <!-- CRT Overlay -->

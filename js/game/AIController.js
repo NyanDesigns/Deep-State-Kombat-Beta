@@ -325,19 +325,20 @@ export class AIController {
                     }
                 }
             } else {
+                // TEMPORARILY DISABLED: Crouch feature disabled for both player and AI
                 // Light attacks are high (hands) - crouch to avoid
-                if ((fighter.state === 'IDLE' || fighter.state === 'WALK') && fighter.actions['crouch'] && this.crouchCooldown <= 0) {
-                    fighter.crouch();
-                    this.crouchCooldown = 0.5; // Cooldown after crouch
-                } else if (fighter.state === 'CROUCH' && attackTiming > 0.5) {
-                    // If already crouched and attack is past its active frames, exit crouch
-                    fighter.exitCrouch();
-                } else {
+                // if ((fighter.state === 'IDLE' || fighter.state === 'WALK') && fighter.actions['crouch'] && this.crouchCooldown <= 0) {
+                //     fighter.crouch();
+                //     this.crouchCooldown = 0.5; // Cooldown after crouch
+                // } else if (fighter.state === 'CROUCH' && attackTiming > 0.5) {
+                //     // If already crouched and attack is past its active frames, exit crouch
+                //     fighter.exitCrouch();
+                // } else {
                     // Can't crouch, try to retreat
                     if (fighter.state === 'IDLE' || fighter.state === 'WALK') {
                         this.moveAway(fighter, opponent, dt);
                     }
-                }
+                // }
             }
         } else if (attackTiming > 0.7) {
             // Late in attack - can counter
@@ -353,6 +354,7 @@ export class AIController {
                 }
             }
         } else {
+            // TEMPORARILY DISABLED: Crouch feature disabled for both player and AI
             // Mid-attack - retreat or exit crouch if crouched
             if (fighter.state === 'CROUCH') {
                 // Exit crouch if attack is in active frames (mid-attack)
@@ -365,27 +367,11 @@ export class AIController {
 
     executeBehavior(fighter, dt, opponent, distance, collisionSystem, 
                     fighterHpPercent, fighterStPercent, opponentHpPercent, opponentStPercent) {
+        // TEMPORARILY DISABLED: Crouch feature disabled for both player and AI
         // Exit crouch if in CROUCH state and not reacting to an attack
         if (fighter.state === 'CROUCH' && !this.opponentAttackDetected) {
-            // Check if opponent is not attacking or attack has passed
-            const opponentAnim = opponent.animationController?.getCurrentAnimation();
-            let shouldExitCrouch = true;
-            
-            if (opponentAnim) {
-                const clip = opponentAnim.getClip();
-                if (clip && clip.duration > 0) {
-                    const attackTiming = opponentAnim.time / clip.duration;
-                    const opponentState = opponent.state;
-                    // Stay crouched if opponent is still in active attack frames
-                    if (opponentState === 'ATTACK' && attackTiming < 0.7) {
-                        shouldExitCrouch = false;
-                    }
-                }
-            }
-            
-            if (shouldExitCrouch) {
-                fighter.exitCrouch();
-            }
+            // If somehow in crouch state, exit it immediately
+            fighter.exitCrouch();
         }
         
         switch (this.currentState) {

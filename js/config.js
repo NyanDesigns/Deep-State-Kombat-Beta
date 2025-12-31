@@ -16,7 +16,7 @@ export const CONFIG = {
         rightLeg: { dmg: 15, cost: 18, range: 2.8, window: [0.25, 0.55] },
         hitAngle: 0.6,
         // Combo system configuration
-        comboSpeedMultiplier: 1.5,  // Combo attacks play at 1.5x speed (minimum)
+        comboSpeedMultiplier: 17.1,  // Combo attacks play at 17.1x speed (hands: 3.5 * 17.1 ≈ 60.0x, legs: 3.0 * 17.1 ≈ 51.3x)
         // Movement configuration for combo system
         movement: {
             pushback: {
@@ -30,6 +30,37 @@ export const CONFIG = {
             frictionFactor: 0.25,  // When too close
             forwardFrictionFactor: 0.3,  // Slightly more friction for forward movement
             collisionBuffer: 1.2  // Multiplier for collision distance check
+        }
+    },
+    animation: {
+        crossfade: {
+            toAttack: 0.12,
+            toHit: 0.08,
+            toBase: 0.20,
+            withinCombo: 0.05,
+            toJump: 0.08,
+            toCrouch: 0.05
+        },
+        motion: {
+            acceleration: 12.0,
+            damping: 8.0,
+            turnSpeed: 10.0
+        },
+        locomotion: {
+            minBaseWeight: 0.1,  // Prevents floor clipping
+            walkThreshold: 0.1,  // Speed to start blending walk
+            crouchDuration: 0.5, // Unified crouch timing
+            jumpDuration: 0.6,   // Jump animation duration
+            jumpCancelWindow: 0.2 // When jump can be interrupted (20%)
+        },
+        priorities: {
+            DEAD: 100,
+            HIT: 90,
+            ATK2: 50,
+            ATK1: 40,
+            JUMP: 30,
+            CROUCH: 30,
+            LOCOMOTION: 10
         }
     }
 };

@@ -3,7 +3,7 @@ import { CharacterLoader } from './CharacterLoader.js';
 import { CHARACTERS } from './characters.js';
 
 // Hardcoded list of available characters (those with 3D models)
-const AVAILABLE_CHARACTERS = ['brandon'];
+const AVAILABLE_CHARACTERS = ['brandon', 'trump'];
 
 export class CharacterManager {
     constructor() {

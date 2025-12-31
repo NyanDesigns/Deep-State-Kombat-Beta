@@ -641,8 +641,8 @@ function animate() {
         const keys = inputHandler.getKeys();
         const state = gameState.getState();
 
-        fighters[0].update(dt, fighters[1], state, keys, sceneManager.camera, collisionSystem);
-        fighters[1].update(dt, fighters[0], state, keys, sceneManager.camera, collisionSystem);
+        fighters[0].update(dt, fighters[1], state, keys, sceneManager.camera, collisionSystem, inputHandler);
+        fighters[1].update(dt, fighters[0], state, keys, sceneManager.camera, collisionSystem, inputHandler);
 
         collisionSystem.resolveCollisions(fighters);
 
@@ -653,6 +653,9 @@ function animate() {
         uiManager.updateHUD(fighters, gameState.getTimer());
         uiManager.updateDebugPanel(fighters, state, gameState.getTimer());
         checkVictoryByHealth();
+        
+        // Clear justPressed keys at the end of the frame (edge detection reset for next frame)
+        inputHandler.clearJustPressed();
     }
 
     renderSystem.render(combatSystem.getHitStop());

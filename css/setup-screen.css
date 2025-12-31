@@ -86,6 +86,14 @@
                character-breathe 4s ease-in-out 1s infinite;
 }
 
+/* Unavailable characters use different breathe animation */
+.p1-png.unavailable.slide-in {
+    opacity: 1;
+    visibility: visible;
+    animation: p1SlideIn 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards,
+               character-breathe-unavailable 4s ease-in-out 1s infinite;
+}
+
 @keyframes p1SlideIn {
     0% {
         left: -100%;
@@ -105,6 +113,14 @@
     visibility: visible;
     animation: p2SlideIn 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards,
                character-breathe-p2 4s ease-in-out 1s infinite;
+}
+
+/* Unavailable characters use different breathe animation */
+.p2-png.unavailable.slide-in {
+    opacity: 1;
+    visibility: visible;
+    animation: p2SlideIn 1s cubic-bezier(0.25, 0.46, 0.45, 0.94) forwards,
+               character-breathe-unavailable-p2 4s ease-in-out 1s infinite;
 }
 
 @keyframes p2SlideIn {
@@ -134,6 +150,18 @@
             drop-shadow(0 0 80px rgba(255, 100, 0, 0.3));
 }
 
+/* Unavailable characters stay grayscale even when selected */
+.p1-png.unavailable.selected {
+    filter: grayscale(100%) brightness(0.8)
+            drop-shadow(-6px 6px 0px #000)
+            drop-shadow(-7px 7px 0px #000)
+            drop-shadow(-8px 8px 0px #000)
+            drop-shadow(-9px 9px 0px #000)
+            drop-shadow(-10px 10px 6px rgba(0, 0, 0, 0.8))
+            drop-shadow(0 0 40px rgba(128, 128, 128, 0.5))
+            drop-shadow(0 0 80px rgba(100, 100, 100, 0.3));
+}
+
 .p2-png.selected {
     animation: none !important; /* Override slide-in and breathe animations */
     right: -30% !important; /* Ensure final position */
@@ -145,6 +173,57 @@
             drop-shadow(-10px 10px 6px rgba(0, 0, 0, 0.8))
             drop-shadow(0 0 40px rgba(255, 140, 0, 0.5))
             drop-shadow(0 0 80px rgba(255, 100, 0, 0.3));
+}
+
+/* Silhouette preview effect - black gradient fill for add-new button hover */
+/* Use higher specificity to override all other filter styles */
+/* Only apply brightness/contrast to the image itself, preserve the original drop-shadow glow */
+.p1-png.silhouette-preview,
+.p2-png.silhouette-preview,
+.background-png.silhouette-preview {
+    /* Make the image completely black (silhouette) with gradient dark black effect */
+    /* Only apply brightness/contrast filters - preserve original drop-shadow from .background-png */
+    filter: brightness(0) contrast(1.2)
+            drop-shadow(0 0 30px rgba(255, 100, 0, 0.5))
+            drop-shadow(0 0 60px rgba(255, 69, 0, 0.3)) !important;
+    /* The brightness(0) makes it pure black, creating a silhouette effect */
+    /* Contrast enhances the edges to make the silhouette shape more defined */
+    /* Keep original drop-shadow colors to maintain the orange glow effect */
+}
+
+/* Ensure silhouette works even when slide-in class is present */
+.p1-png.slide-in.silhouette-preview,
+.p2-png.slide-in.silhouette-preview {
+    filter: brightness(0) contrast(1.2)
+            drop-shadow(0 0 30px rgba(255, 100, 0, 0.5))
+            drop-shadow(0 0 60px rgba(255, 69, 0, 0.3)) !important;
+}
+
+/* Unavailable characters stay grayscale even when selected */
+.p2-png.unavailable.selected {
+    filter: grayscale(100%) brightness(0.8)
+            drop-shadow(-6px 6px 0px #000)
+            drop-shadow(-7px 7px 0px #000)
+            drop-shadow(-8px 8px 0px #000)
+            drop-shadow(-9px 9px 0px #000)
+            drop-shadow(-10px 10px 6px rgba(0, 0, 0, 0.8))
+            drop-shadow(0 0 40px rgba(128, 128, 128, 0.5))
+            drop-shadow(0 0 80px rgba(100, 100, 100, 0.3));
+}
+
+/* Unavailable characters stay grayscale when focused (slide-in state) */
+.p1-png.unavailable.slide-in,
+.p1-png.unavailable {
+    filter: grayscale(100%) brightness(0.8)
+            drop-shadow(0 0 30px rgba(128, 128, 128, 0.5))
+            drop-shadow(0 0 60px rgba(100, 100, 100, 0.3));
+}
+
+.p2-png.unavailable.slide-in,
+.p2-png.unavailable {
+    filter: grayscale(100%) brightness(0.8)
+            drop-shadow(0 0 30px rgba(128, 128, 128, 0.5))
+            drop-shadow(0 0 60px rgba(100, 100, 100, 0.3));
 }
 
 @keyframes character-breathe-p2 {
@@ -160,6 +239,22 @@
     }
 }
 
+/* Unavailable characters breathe animation - keep grayscale */
+@keyframes character-breathe-unavailable-p2 {
+    0%, 100% {
+        transform: translateY(-50%) scaleX(-1) scale(1);
+        filter: grayscale(100%) brightness(0.8)
+                drop-shadow(0 0 30px rgba(128, 128, 128, 0.5))
+                drop-shadow(0 0 60px rgba(100, 100, 100, 0.3));
+    }
+    50% {
+        transform: translateY(-50%) scaleX(-1) scale(1.02);
+        filter: grayscale(100%) brightness(0.8)
+                drop-shadow(0 0 40px rgba(140, 140, 140, 0.6))
+                drop-shadow(0 0 80px rgba(120, 120, 120, 0.4));
+    }
+}
+
 @keyframes character-breathe {
     0%, 100% {
         transform: translateY(-50%) scale(1);
@@ -170,6 +265,22 @@
         transform: translateY(-50%) scale(1.02);
         filter: drop-shadow(0 0 40px rgba(255, 140, 0, 0.6))
                 drop-shadow(0 0 80px rgba(255, 100, 0, 0.4));
+    }
+}
+
+/* Unavailable characters breathe animation - keep grayscale */
+@keyframes character-breathe-unavailable {
+    0%, 100% {
+        transform: translateY(-50%) scale(1);
+        filter: grayscale(100%) brightness(0.8)
+                drop-shadow(0 0 30px rgba(128, 128, 128, 0.5))
+                drop-shadow(0 0 60px rgba(100, 100, 100, 0.3));
+    }
+    50% {
+        transform: translateY(-50%) scale(1.02);
+        filter: grayscale(100%) brightness(0.8)
+                drop-shadow(0 0 40px rgba(140, 140, 140, 0.6))
+                drop-shadow(0 0 80px rgba(120, 120, 120, 0.4));
     }
 }
 
@@ -496,16 +607,16 @@
 /* Main Title - Game Logo Style */
 #setup-screen h1.game-title-logo {
     color: #fff;
-    font-size: 8em; /* Start bigger - will animate to 5em */
+    font-size: 6em; /* Final size */
     font-weight: 900;
     letter-spacing: 0;
     margin: 0;
     text-align: center;
     z-index: 10;
     position: fixed;
-    top: 50%; /* Start in center */
+    top: 80px; /* Final position */
     left: 50%;
-    transform: translate(-50%, -50%); /* Center both horizontally and vertically */
+    transform: translate(-50%, 0); /* Center horizontally */
     line-height: 1;
     text-transform: uppercase;
     text-shadow: none !important;
@@ -515,52 +626,27 @@
     gap: 0;
     box-shadow: none;
     align-items: center;
-    /* Initial hidden state for loading sequence */
+    /* Initial hidden state for loading sequence - start above screen */
     opacity: 0;
-    transform: translate(-50%, -50%) scale(0);
+    transform: translate(-50%, -100%); /* Start above screen */
     transition: none; /* Remove transition, use animation instead */
 }
 
 /* Title visible state - triggers animation */
 #setup-screen h1.game-title-logo.title-visible {
     opacity: 1;
-    animation: titleSequence 2.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    animation: titleSlideIn 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
-/* Title sequence animation: pop in center → stay → move to top */
-@keyframes titleSequence {
-    /* Phase 1: Pop in at center (0-25%) */
+/* Title slide-in animation: slide in from top */
+@keyframes titleSlideIn {
     0% {
         opacity: 0;
-        transform: translate(-50%, -50%) scale(0);
-        font-size: 8em;
-        top: 50%;
+        transform: translate(-50%, -100%);
     }
-    15% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1.1);
-        font-size: 8em;
-        top: 50%;
-    }
-    25% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-        font-size: 8em;
-        top: 50%;
-    }
-    /* Phase 2: Stay in center longer (25-50%) */
-    50% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-        font-size: 8em;
-        top: 50%;
-    }
-    /* Phase 3: Smoothly move up and scale down directly (50-100%) - no middle step */
     100% {
         opacity: 1;
-        transform: translate(-50%, 0) scale(0.75); /* 6em / 8em = 0.75 */
-        font-size: 6em;
-        top: 80px;
+        transform: translate(-50%, 0);
     }
 }
 
@@ -638,6 +724,73 @@
     right: 50px;
 }
 
+/* Coming Soon Text for Unavailable Characters */
+.coming-soon-text {
+    position: fixed;
+    font-family: 'Arial Black', 'Franklin Gothic Bold', 'Impact', sans-serif;
+    font-size: 3.5em;
+    font-weight: 900;
+    color: #ffffff;
+    text-transform: uppercase;
+    letter-spacing: 8px;
+    text-shadow: 
+        4px 4px 0px #000,
+        5px 5px 0px #000,
+        6px 6px 0px #000,
+        7px 7px 0px #000,
+        8px 8px 6px rgba(0, 0, 0, 0.8);
+    z-index: 15;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease, font-size 0.3s ease;
+}
+
+.coming-soon-text.visible {
+    opacity: 1;
+    visibility: visible;
+    animation: coming-soon-flash 2s infinite;
+}
+
+.coming-soon-text.flashing {
+    animation: coming-soon-flash-fast 0.8s infinite;
+}
+
+.coming-soon-text.big {
+    font-size: 4.5em;
+}
+
+.coming-soon-text-p1 {
+    top: 40px;
+    left: 50px;
+}
+
+.coming-soon-text-p2 {
+    top: 40px;
+    right: 50px;
+}
+
+@keyframes coming-soon-flash {
+    0%, 100% {
+        opacity: 1;
+        color: #ffffff;
+    }
+    50% {
+        opacity: 0.5;
+        color: #888888;
+    }
+}
+
+@keyframes coming-soon-flash-fast {
+    0%, 100% {
+        opacity: 1;
+        color: #ffffff;
+    }
+    50% {
+        opacity: 0.3;
+        color: #666666;
+    }
+}
+
 /* Choose Your Fighter Text */
 #choose-fighter-text {
     font-family: 'Arial Black', 'Franklin Gothic Bold', 'Impact', sans-serif;
@@ -658,38 +811,28 @@
     position: fixed;
     bottom: calc(80px + 650px + 20px);
     left: 50%;
-    transform: translateX(-50%) translateY(-80px) scale(0); /* Start above and scaled down */
-    /* Initially hidden during loading */
+    transform: translateX(-50%) translateY(0); /* Final position */
+    /* Initially hidden during loading - start above screen */
     opacity: 0;
     visibility: hidden;
     transition: none; /* Remove transition, use animation instead */
 }
 
-/* Pop-up then slide-down animation for choose fighter text */
+/* Slide-in from top animation for choose fighter text */
 #choose-fighter-text.slide-in {
     opacity: 1;
     visibility: visible;
-    animation: chooseFighterPopAndSlide 1.2s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+    animation: chooseFighterSlideIn 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
 }
 
-@keyframes chooseFighterPopAndSlide {
-    /* Phase 1: Pop up above final position (0-40%) */
+@keyframes chooseFighterSlideIn {
     0% {
         opacity: 0;
-        transform: translateX(-50%) translateY(-80px) scale(0);
+        transform: translateX(-50%) translateY(-100%);
     }
-    20% {
-        opacity: 1;
-        transform: translateX(-50%) translateY(-80px) scale(1.1);
-    }
-    40% {
-        opacity: 1;
-        transform: translateX(-50%) translateY(-80px) scale(1);
-    }
-    /* Phase 2: Slide down to final position (40-100%) */
     100% {
         opacity: 1;
-        transform: translateX(-50%) translateY(0) scale(1);
+        transform: translateX(-50%) translateY(0);
     }
 }
 
@@ -1025,42 +1168,9 @@ button:hover {
         font-size: 4.8em; /* Final size after animation - bigger */
     }
     
-    /* Adjust animation for responsive - scale proportionally */
+    /* Adjust animation for responsive - slide in from top */
     #setup-screen h1.game-title-logo.title-visible {
-        animation: titleSequenceResponsive1200 2.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-    }
-    
-    @keyframes titleSequenceResponsive1200 {
-        0% {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0);
-            font-size: 6.4em; /* 8em * 0.8 */
-            top: 50%;
-        }
-        15% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1.1);
-            font-size: 6.4em;
-            top: 50%;
-        }
-        25% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-            font-size: 6.4em;
-            top: 50%;
-        }
-        50% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-            font-size: 6.4em;
-            top: 50%;
-        }
-        100% {
-            opacity: 1;
-            transform: translate(-50%, 0) scale(1);
-            font-size: 4.8em; /* 6em * 0.8 - bigger final size */
-            top: 70px;
-        }
+        animation: titleSlideIn 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
     }
     
     #setup-screen h1.game-title-logo .title-word {
@@ -1161,42 +1271,9 @@ button:hover {
         font-size: 4.2em; /* Final size after animation - bigger */
     }
     
-    /* Adjust animation for responsive - scale proportionally */
+    /* Adjust animation for responsive - slide in from top */
     #setup-screen h1.game-title-logo.title-visible {
-        animation: titleSequenceResponsive850 2.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-    }
-    
-    @keyframes titleSequenceResponsive850 {
-        0% {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0);
-            font-size: 5.6em; /* 8em * 0.7 */
-            top: 50%;
-        }
-        15% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1.1);
-            font-size: 5.6em;
-            top: 50%;
-        }
-        25% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-            font-size: 5.6em;
-            top: 50%;
-        }
-        50% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-            font-size: 5.6em;
-            top: 50%;
-        }
-        100% {
-            opacity: 1;
-            transform: translate(-50%, 0) scale(1);
-            font-size: 4.2em; /* 6em * 0.7 - bigger final size */
-            top: 65px;
-        }
+        animation: titleSlideIn 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
     }
     
     #setup-screen h1.game-title-logo .title-deep {
@@ -1276,42 +1353,9 @@ button:hover {
         font-size: 3em; /* Final size after animation - bigger */
     }
     
-    /* Adjust animation for responsive - scale proportionally */
+    /* Adjust animation for responsive - slide in from top */
     #setup-screen h1.game-title-logo.title-visible {
-        animation: titleSequenceResponsive600 2.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
-    }
-    
-    @keyframes titleSequenceResponsive600 {
-        0% {
-            opacity: 0;
-            transform: translate(-50%, -50%) scale(0);
-            font-size: 4em; /* 8em * 0.5 */
-            top: 50%;
-        }
-        15% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1.1);
-            font-size: 4em;
-            top: 50%;
-        }
-        25% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-            font-size: 4em;
-            top: 50%;
-        }
-        50% {
-            opacity: 1;
-            transform: translate(-50%, -50%) scale(1);
-            font-size: 4em;
-            top: 50%;
-        }
-        100% {
-            opacity: 1;
-            transform: translate(-50%, 0) scale(1);
-            font-size: 3em; /* 6em * 0.5 - bigger final size */
-            top: 60px;
-        }
+        animation: titleSlideIn 1s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
     }
     
     #setup-screen h1.game-title-logo .title-deep {

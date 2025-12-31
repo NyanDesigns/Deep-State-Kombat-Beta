@@ -13,6 +13,9 @@ export class CharacterSelector {
         this.flickerInterval = null;
         this.isFlickering = false;
         this.flickeringPlayerSlot = null;
+        // Silhouette preview state
+        this.isShowingSilhouette = false;
+        this.silhouettePlayerSlot = null;
         // Track focused special cards (random/add-new)
         this.focusedSpecialCards = { p1: null, p2: null }; // 'random', 'add-new', or null
         // Track failed background loads to avoid noisy errors
@@ -21,8 +24,8 @@ export class CharacterSelector {
         this.keyboardFocusPosition = { row: 0, col: 0 }; // Current keyboard focus position
         this.isKeyboardNavigationActive = false; // Flag to track keyboard navigation mode
         this.gridLayout = [
-            ['trump', 'random', 'obama'],     // Row 0
-            ['epstein', 'add-new', 'brandon']  // Row 1
+            ['trump', 'random', 'brandon'],     // Row 0
+            ['epstein', 'add-new', 'obama']  // Row 1
         ];
         this.keyboardNavigationBound = null; // Store bound handler for cleanup
     }
@@ -67,8 +70,8 @@ export class CharacterSelector {
 
         // Define the fixed 2×3 grid layout
         const gridLayout = [
-            ['trump', 'random', 'obama'],     // Row 1
-            ['epstein', 'add-new', 'brandon']  // Row 2
+            ['trump', 'random', 'brandon'],     // Row 1
+            ['epstein', 'add-new', 'obama']  // Row 2
         ];
 
         // Create grid structure with skeletons first
@@ -165,33 +168,48 @@ export class CharacterSelector {
     }
 
     /**
-     * Set default characters (Trump for both players)
+     * Set default characters (Trump for P1, Brandon for P2)
      */
     setDefaultCharacters() {
         const trumpCharacter = this.characterManager.getCharacter('trump');
+        const brandonCharacter = this.characterManager.getCharacter('brandon');
+        
         if (trumpCharacter) {
-            // Set Trump as focused for both players by default
+            // Set Trump as focused for Player 1 by default
             this.focusedCharacters.p1 = trumpCharacter;
-            this.focusedCharacters.p2 = trumpCharacter;
             
             // Initialize keyboard focus to Trump (row 0, col 0)
             this.keyboardFocusPosition = { row: 0, col: 0 };
             
             // Update visual focus indicators
             this.updateCharacterCardFocus('trump', 'p1');
-            this.updateCharacterCardFocus('trump', 'p2');
             
             // Wait a bit before showing info to ensure smooth loading
             setTimeout(() => {
-                // Update info panel and background with default character
+                // Update info panel and background with default character for P1
                 this.updateCharacterInfoPanel(trumpCharacter);
                 this.updateCharacterNameDisplay(trumpCharacter, 'p1');
-                this.updateCharacterNameDisplay(trumpCharacter, 'p2');
             }, 600);
             
-            // Show Trump for both P1 and P2 by default
+            // Show Trump for P1 by default
             this.showBackgroundPreview(trumpCharacter, 'p1');
-            this.showBackgroundPreview(trumpCharacter, 'p2');
+        }
+        
+        if (brandonCharacter) {
+            // Set Brandon as focused for Player 2 by default
+            this.focusedCharacters.p2 = brandonCharacter;
+            
+            // Update visual focus indicators for P2
+            this.updateCharacterCardFocus('brandon', 'p2');
+            
+            // Wait a bit before showing info to ensure smooth loading
+            setTimeout(() => {
+                // Update background with default character for P2
+                this.updateCharacterNameDisplay(brandonCharacter, 'p2');
+            }, 600);
+            
+            // Show Brandon for P2 by default
+            this.showBackgroundPreview(brandonCharacter, 'p2');
         }
     }
 
@@ -265,8 +283,8 @@ export class CharacterSelector {
 
         // Define the fixed 2×3 grid layout
         const gridLayout = [
-            ['trump', 'random', 'obama'],     // Row 1
-            ['epstein', 'add-new', 'brandon']  // Row 2
+            ['trump', 'random', 'brandon'],     // Row 1
+            ['epstein', 'add-new', 'obama']  // Row 2
         ];
 
         // Create grid rows and cells
@@ -314,12 +332,13 @@ export class CharacterSelector {
         skeleton.className = 'character-card-skeleton';
 
         // Add PNG background image
-        // Always use T.png with face-zoom for Brandon as placeholder, regardless of 3D model availability
+        // Always use T.png with face-zoom for Brandon and Trump as placeholder, regardless of 3D model availability
         // For other characters without 3D models, also use T.png with face-zoom
         const has3DModel = this.characterManager.isCharacterAvailable(character.id);
         const isBrandon = character.id === 'brandon';
-        // Always use thumbnail (T.png) mode for Brandon, or for characters without 3D models
-        const useThumbnail = isBrandon || !has3DModel;
+        const isTrump = character.id === 'trump';
+        // Always use thumbnail (T.png) mode for Brandon, Trump, or for characters without 3D models
+        const useThumbnail = isBrandon || isTrump || !has3DModel;
         const pngCandidates = this.getCharacterPNGCandidates(character, null, false, useThumbnail);
         const backgroundImg = document.createElement('img');
         backgroundImg.className = 'character-card-background';
@@ -444,6 +463,10 @@ export class CharacterSelector {
 
         // Focus/hover handlers for background preview and info panel
         const handleFocus = (e) => {
+            // Skip if keyboard navigation is active (keyboard takes priority)
+            if (this.isKeyboardNavigationActive) {
+                return;
+            }
             if (e.currentTarget === card || card.contains(e.target)) {
                 this.onCharacterFocus(character);
             }
@@ -556,10 +579,16 @@ export class CharacterSelector {
 
         // Mouseenter handler - start flickering and apply focus
         card.addEventListener('mouseenter', () => {
+            // Skip if keyboard navigation is active (keyboard takes priority)
+            if (this.isKeyboardNavigationActive) {
+                return;
+            }
             const targetSlot = this.getTargetPlayerSlot();
             this.focusedSpecialCards[targetSlot] = 'random';
             this.startRandomFlicker(targetSlot);
             this.updateCardFocus(card, targetSlot);
+            // Hide "Coming Soon" text when hovering over random card
+            this.hideComingSoonText(targetSlot);
         });
 
         // Mouseleave handler - stop flickering and clear focus
@@ -621,17 +650,25 @@ export class CharacterSelector {
             description.style.visibility = 'visible';
         }, 400);
 
-        // Mouseenter handler - apply focus styling
+        // Mouseenter handler - apply focus styling and show silhouette
         card.addEventListener('mouseenter', () => {
+            // Skip if keyboard navigation is active (keyboard takes priority)
+            if (this.isKeyboardNavigationActive) {
+                return;
+            }
             const targetSlot = this.getTargetPlayerSlot();
             this.focusedSpecialCards[targetSlot] = 'add-new';
             this.updateCardFocus(card, targetSlot);
+            this.startSilhouettePreview(targetSlot);
+            // Hide "Coming Soon" text when hovering over add-new card
+            this.hideComingSoonText(targetSlot);
         });
 
-        // Mouseleave handler - clear focus
+        // Mouseleave handler - clear focus and stop silhouette
         card.addEventListener('mouseleave', () => {
             const targetSlot = this.getTargetPlayerSlot();
             this.focusedSpecialCards[targetSlot] = null;
+            this.stopSilhouettePreview();
             this.clearCardFocus(targetSlot);
         });
 
@@ -809,8 +846,13 @@ export class CharacterSelector {
         // Check if character is available before trying to select
         if (!this.characterManager.isCharacterAvailable(character.id)) {
             console.warn(`Character ${character.id} is not available (coming soon)`);
-            // Still allow selection for coming soon characters, but show a message
-            alert(`${character.name} is coming soon! Only Brandon is currently available.`);
+            
+            // Determine which player slot this would be for
+            const availableSlot = !this.selectedCharacters.p1 ? 'p1' : 'p2';
+            
+            // Show "Coming Soon" text with flashing and bigger size
+            this.showComingSoonText(availableSlot, true);
+            
             return;
         }
 
@@ -850,6 +892,9 @@ export class CharacterSelector {
             this.showBackgroundPreview(character, availableSlot);
             
             // Don't update the other player's preview - keep them independent
+            
+            // Hide "Coming Soon" text when successfully selecting an available character
+            this.hideComingSoonText(availableSlot);
             
             this.updateStartButton();
             this.updateReadyText();
@@ -949,6 +994,40 @@ export class CharacterSelector {
                 p2ReadyText.classList.remove('visible');
             }
         }
+    }
+
+    /**
+     * Show or hide "Coming Soon" text for a player slot
+     * @param {string} playerSlot - Player slot ('p1' or 'p2')
+     * @param {boolean} isClicked - Whether this is triggered by a click (bigger and faster flash)
+     */
+    showComingSoonText(playerSlot, isClicked = false) {
+        const comingSoonText = document.getElementById(`${playerSlot}-coming-soon-text`);
+        if (!comingSoonText) return;
+        
+        if (isClicked) {
+            // Make it bigger and flash faster
+            comingSoonText.classList.add('visible', 'flashing', 'big');
+            
+            // Remove the big and flashing classes after a short duration
+            setTimeout(() => {
+                comingSoonText.classList.remove('big', 'flashing');
+            }, 2000);
+        } else {
+            // Normal hover state - just visible with normal flash
+            comingSoonText.classList.add('visible');
+        }
+    }
+
+    /**
+     * Hide "Coming Soon" text for a player slot
+     * @param {string} playerSlot - Player slot ('p1' or 'p2')
+     */
+    hideComingSoonText(playerSlot) {
+        const comingSoonText = document.getElementById(`${playerSlot}-coming-soon-text`);
+        if (!comingSoonText) return;
+        
+        comingSoonText.classList.remove('visible', 'flashing', 'big');
     }
 
     /**
@@ -1322,20 +1401,30 @@ export class CharacterSelector {
 
         this.updateStartButton();
         this.updateReadyText();
+        
+        // Hide "Coming Soon" text when clearing selection
+        this.hideComingSoonText(playerSlot);
     }
 
     /**
      * Handle character focus (hover) - update background preview and info panel
      * @param {Object} character - Character configuration
+     * @param {boolean} fromKeyboard - Whether this was triggered by keyboard navigation
      */
-    onCharacterFocus(character) {
+    onCharacterFocus(character, fromKeyboard = false) {
         if (!character || !character.id) {
             console.warn('Invalid character in onCharacterFocus');
             return;
         }
 
-        // Clear keyboard navigation mode when mouse is used
-        if (!this.isKeyboardNavigationActive) {
+        // If keyboard navigation is active, only proceed if this call is from keyboard
+        // This prevents mouse hover from overriding keyboard navigation
+        if (this.isKeyboardNavigationActive && !fromKeyboard) {
+            return;
+        }
+
+        // Clear keyboard navigation mode when mouse is used (and not from keyboard)
+        if (!fromKeyboard) {
             // Mouse navigation - find position in grid and update keyboard focus position
             const position = this.findCharacterPosition(character.id);
             if (position) {
@@ -1361,6 +1450,9 @@ export class CharacterSelector {
         // Update visual focus indicator
         this.updateCharacterCardFocus(character.id, focusSlot);
 
+        // Check if character is available
+        const isAvailable = this.characterManager.isCharacterAvailable(character.id);
+        
         // Update preview only for the focused slot - keep P1 and P2 independent
         if (focusSlot === 'p1') {
             // Hovering for P1 slot
@@ -1369,11 +1461,19 @@ export class CharacterSelector {
                 this.updateCharacterInfoPanel(this.selectedCharacters.p1);
                 this.updateCharacterNameDisplay(this.selectedCharacters.p1, 'p1');
                 this.showBackgroundPreview(this.selectedCharacters.p1, 'p1');
+                this.hideComingSoonText('p1');
             } else {
                 // P1 not selected, show hovered character
                 this.updateCharacterInfoPanel(character);
                 this.updateCharacterNameDisplay(character, 'p1');
                 this.showBackgroundPreview(character, 'p1');
+                
+                // Show "Coming Soon" text if character is unavailable
+                if (!isAvailable) {
+                    this.showComingSoonText('p1', false);
+                } else {
+                    this.hideComingSoonText('p1');
+                }
             }
             // Don't update P2 preview - keep it independent
         } else {
@@ -1382,10 +1482,18 @@ export class CharacterSelector {
                 // P2 is selected, show selected P2
                 this.updateCharacterNameDisplay(this.selectedCharacters.p2, 'p2');
                 this.showBackgroundPreview(this.selectedCharacters.p2, 'p2');
+                this.hideComingSoonText('p2');
             } else {
                 // P2 not selected, show hovered character
                 this.updateCharacterNameDisplay(character, 'p2');
                 this.showBackgroundPreview(character, 'p2');
+                
+                // Show "Coming Soon" text if character is unavailable
+                if (!isAvailable) {
+                    this.showComingSoonText('p2', false);
+                } else {
+                    this.hideComingSoonText('p2');
+                }
             }
             // Don't update P1 preview or info panel - keep them independent
         }
@@ -1542,11 +1650,29 @@ export class CharacterSelector {
             backgroundImg.style.display = 'none';
         };
 
+        // Apply grayscale filter if character is unavailable (check before loading)
+        // But don't override silhouette-preview class if it's active
+        if (!backgroundImg.classList.contains('silhouette-preview')) {
+            const isAvailable = this.characterManager.isCharacterAvailable(character.id);
+            if (!isAvailable) {
+                backgroundImg.classList.add('unavailable');
+                backgroundImg.style.filter = 'grayscale(100%) brightness(0.8)';
+            } else {
+                backgroundImg.classList.remove('unavailable');
+                // Remove inline filter to let CSS handle it
+                backgroundImg.style.filter = '';
+            }
+        } else {
+            // If silhouette is active, ensure no inline filter overrides it
+            backgroundImg.style.filter = '';
+        }
+
         // Set up load handler
         backgroundImg.onload = () => {
             console.log(`Background PNG loaded successfully for ${playerSlot} ${character.name}`);
             backgroundImg.style.display = 'block';
             backgroundImg.style.opacity = '1';
+            // Filter is already applied above (handles both cached and newly loaded images)
         };
 
         // Kick off first load
@@ -1720,6 +1846,169 @@ export class CharacterSelector {
     }
 
     /**
+     * Start the silhouette preview (Epstein V with black gradient fill)
+     * @param {string} playerSlot - Player slot to show silhouette ('p1' or 'p2')
+     */
+    startSilhouettePreview(playerSlot) {
+        // Don't start if already showing silhouette
+        if (this.isShowingSilhouette) {
+            return;
+        }
+
+        // Don't start if both players are already selected
+        if (this.selectedCharacters.p1 && this.selectedCharacters.p2) {
+            return;
+        }
+
+        this.isShowingSilhouette = true;
+        this.silhouettePlayerSlot = playerSlot;
+
+        // Get Epstein character
+        const epsteinCharacter = this.characterManager.getCharacter('epstein');
+        if (!epsteinCharacter) {
+            console.warn('Epstein character not found for silhouette preview');
+            this.isShowingSilhouette = false;
+            return;
+        }
+
+        // Show Epstein's V (victory) image with silhouette effect
+        const backgroundImg = document.getElementById(`${playerSlot}-background-png-image`);
+        if (!backgroundImg) {
+            console.warn(`Background preview image element not found for ${playerSlot}`);
+            this.isShowingSilhouette = false;
+            return;
+        }
+
+        // Build path to Epstein's V.png (victory variant)
+        const epsteinVPath = 'assets/characters/Epstein/visuals/epsteinV.png';
+        
+        // Helper to set src while forcing reload
+        const setBackgroundSrc = (path) => {
+            if (!path) return;
+            
+            // Try to use cached image if preloader is available
+            let imageSrc = path;
+            if (this.imagePreloader) {
+                const cached = this.imagePreloader.getImageSource(path, 'epstein', 'V');
+                imageSrc = cached || path;
+            }
+            
+            if (backgroundImg.src === imageSrc || backgroundImg.src.endsWith(path)) {
+                backgroundImg.src = '';
+                setTimeout(() => {
+                    backgroundImg.src = imageSrc;
+                }, 0);
+            } else {
+                backgroundImg.src = imageSrc;
+            }
+        };
+
+        // Add silhouette class to apply CSS filter
+        backgroundImg.classList.add('silhouette-preview');
+        
+        // Remove selected class if present
+        backgroundImg.classList.remove('selected');
+        backgroundImg.classList.remove('unavailable');
+        
+        // Clear any inline filter styles that might conflict
+        backgroundImg.style.filter = '';
+        
+        // Set up error handler
+        backgroundImg.onerror = () => {
+            console.warn(`Epstein V.png not found for silhouette preview`);
+            backgroundImg.style.display = 'none';
+        };
+
+        // Set up load handler
+        backgroundImg.onload = () => {
+            console.log(`Silhouette preview loaded successfully for ${playerSlot}`);
+            backgroundImg.style.display = 'block';
+            backgroundImg.style.opacity = '1';
+            backgroundImg.style.visibility = 'visible';
+            // Ensure silhouette class is applied
+            backgroundImg.classList.add('silhouette-preview');
+            // Ensure no inline filter overrides the CSS class
+            backgroundImg.style.filter = '';
+        };
+
+        // Update character name display
+        this.updateCharacterNameDisplay(epsteinCharacter, playerSlot);
+        
+        // Update info panel only if showing for P1
+        if (playerSlot === 'p1') {
+            this.updateCharacterInfoPanel(epsteinCharacter);
+        }
+
+        // Ensure slide-in class is present for proper animation
+        // Check if it needs slide-in class based on player slot
+        const isP1 = playerSlot === 'p1';
+        if (!backgroundImg.classList.contains('slide-in')) {
+            backgroundImg.classList.add('slide-in');
+        }
+        
+        // Start loading the image
+        setBackgroundSrc(epsteinVPath);
+        
+        // Show immediately (will hide on error if needed)
+        backgroundImg.style.display = 'block';
+    }
+
+    /**
+     * Stop the silhouette preview and restore normal preview
+     */
+    stopSilhouettePreview() {
+        if (!this.isShowingSilhouette) {
+            return;
+        }
+
+        this.isShowingSilhouette = false;
+
+        // Remove silhouette class from background images
+        const p1Img = document.getElementById('p1-background-png-image');
+        const p2Img = document.getElementById('p2-background-png-image');
+        
+        if (p1Img) {
+            p1Img.classList.remove('silhouette-preview');
+        }
+        if (p2Img) {
+            p2Img.classList.remove('silhouette-preview');
+        }
+
+        // Restore previous preview state based on selected/focused characters
+        if (this.silhouettePlayerSlot) {
+            const playerSlot = this.silhouettePlayerSlot;
+            const selectedCharacter = this.selectedCharacters[playerSlot];
+            const focusedCharacter = this.focusedCharacters[playerSlot];
+            
+            // Show selected character if exists, otherwise show focused character, otherwise default
+            const characterToShow = selectedCharacter || focusedCharacter;
+            if (playerSlot === 'p1' && !characterToShow) {
+                const defaultChar = this.characterManager.getCharacter('trump');
+                if (defaultChar) {
+                    this.showBackgroundPreview(defaultChar, playerSlot);
+                    this.updateCharacterNameDisplay(defaultChar, playerSlot);
+                    this.updateCharacterInfoPanel(defaultChar);
+                }
+            } else if (playerSlot === 'p2' && !characterToShow) {
+                const defaultChar = this.characterManager.getCharacter('brandon');
+                if (defaultChar) {
+                    this.showBackgroundPreview(defaultChar, playerSlot);
+                    this.updateCharacterNameDisplay(defaultChar, playerSlot);
+                }
+            } else if (characterToShow) {
+                this.showBackgroundPreview(characterToShow, playerSlot);
+                this.updateCharacterNameDisplay(characterToShow, playerSlot);
+                // Update info panel only if restoring for P1
+                if (playerSlot === 'p1') {
+                    this.updateCharacterInfoPanel(characterToShow);
+                }
+            }
+
+            this.silhouettePlayerSlot = null;
+        }
+    }
+
+    /**
      * Show the add new character dialog/file input
      */
     showAddNewCharacterDialog() {
@@ -1833,6 +2122,11 @@ export class CharacterSelector {
                 this.stopRandomFlicker();
             }
             
+            // Stop silhouette preview if it's active
+            if (currentCellType === 'add-new') {
+                this.stopSilhouettePreview();
+            }
+            
             // Clear focused special cards for the active slot
             const targetSlot = this.getTargetPlayerSlot();
             if (this.focusedSpecialCards[targetSlot]) {
@@ -1852,22 +2146,27 @@ export class CharacterSelector {
         }
 
         // Handle based on card type
+        const targetSlot = this.getTargetPlayerSlot();
         if (cellType === 'random') {
             // For random card, trigger focus behavior
-            const targetSlot = this.getTargetPlayerSlot();
             this.focusedSpecialCards[targetSlot] = 'random';
             this.updateCardFocus(card, targetSlot);
             this.startRandomFlicker(targetSlot);
+            // Hide "Coming Soon" text when focusing on random card
+            this.hideComingSoonText(targetSlot);
         } else if (cellType === 'add-new') {
-            // For add-new card, trigger focus behavior
-            const targetSlot = this.getTargetPlayerSlot();
+            // For add-new card, trigger focus behavior and show silhouette
             this.focusedSpecialCards[targetSlot] = 'add-new';
             this.updateCardFocus(card, targetSlot);
+            this.startSilhouettePreview(targetSlot);
+            // Hide "Coming Soon" text when focusing on add-new card
+            this.hideComingSoonText(targetSlot);
         } else {
             // Character card
             const character = this.characterManager.getCharacter(cellType);
             if (character) {
-                this.onCharacterFocus(character);
+                // Pass fromKeyboard=true to indicate this is from keyboard navigation
+                this.onCharacterFocus(character, true);
             }
         }
     }

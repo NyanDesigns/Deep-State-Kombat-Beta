@@ -343,11 +343,19 @@ export class PreviewScene {
         }
 
         // Move model so the head lands at a consistent target point
+        // Character-specific adjustments
+        const isTrump = cellId === 'trump';
         const headTarget = new THREE.Vector3(0, 1.0, 0); // Lower anchor to push the model down in frame while keeping face centered
         const moveToTarget = headTarget.clone().sub(headPos);
         model.position.add(moveToTarget);
-        const extraDownOffset = -8.5; // move model up a bit relative to previous extreme offset
+        let extraDownOffset = -8.5; // move model up a bit relative to previous extreme offset
         const extraLeftOffset = 0.4; // shift model right in frame (positive X)
+        
+        // Trump-specific: move down a little more
+        if (isTrump) {
+            extraDownOffset -= 0.6; // Move down by 0.6 units more
+        }
+        
         model.position.y += extraDownOffset;
         model.position.x += extraLeftOffset;
         model.updateMatrixWorld(true);
@@ -375,7 +383,13 @@ export class PreviewScene {
         const fovY = THREE.MathUtils.degToRad(cam.fov || 36);
         const aspect = cam.aspect || 1;
         const fovX = 2 * Math.atan(Math.tan(fovY / 2) * aspect);
-        const fitMargin = 0.2; // zoomed out a bit more
+        let fitMargin = 0.2; // zoomed out a bit more
+        
+        // Trump-specific: zoom out slightly (larger fitMargin = more zoom out)
+        if (isTrump) {
+            fitMargin = 0.17; // Zoom out slightly by increasing fit margin
+        }
+        
         const distV = (effectiveSphere.radius * fitMargin) / Math.tan(fovY / 2);
         const distH = (effectiveSphere.radius * fitMargin) / Math.tan(fovX / 2);
         const fitDist = Math.max(distV, distH, (cam.near || 0.1) * 3.5); // avoid near-plane clipping

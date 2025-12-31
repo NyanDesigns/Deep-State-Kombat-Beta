@@ -25,19 +25,19 @@ export class HitboxSystem {
         }
 
         if (fighter.bones.spine) {
-            // Use bone world position for torso, with slight upward offset
+            // Use bone world position for torso, with slight offset (lowered a bit)
             const spinePos = BoneDiscovery.getBoneWorldPosition(fighter.bones.spine);
             fighter.hurtSpheres.torso.center.copy(spinePos);
-            fighter.hurtSpheres.torso.center.y += 0.12; // Move torso hit point up
+            fighter.hurtSpheres.torso.center.y += 0.05; // Move torso hit point up slightly (lowered from 0.12)
         } else if (fighter.modelBox) {
             // Fallback: use model bounding box center
             const center = fighter.modelBox.getCenter(new THREE.Vector3());
             fighter.hurtSpheres.torso.center.copy(center);
-            fighter.hurtSpheres.torso.center.y += 0.12; // Move torso up
+            fighter.hurtSpheres.torso.center.y += 0.05; // Move torso up slightly (lowered from 0.12)
         } else {
             // Ultimate fallback: use mesh position
             fighter.hurtSpheres.torso.center.copy(fighter.mesh.position);
-            fighter.hurtSpheres.torso.center.y += 0.95; // Approximate torso height, moved up
+            fighter.hurtSpheres.torso.center.y += 0.88; // Approximate torso height (lowered from 0.95)
         }
 
         // Defensive toggles
@@ -51,12 +51,14 @@ export class HitboxSystem {
 
     static updateAttackSpheres(fighter) {
         // Update attack spheres only during attacks
-        if (fighter.state === 'ATTACK' && fighter.currAct && fighter.atkType) {
-            const clip = fighter.currAct.getClip();
+        // Get current animation from AnimationController or fallback to currAct
+        const currAct = fighter.animationController?.getCurrentAnimation() || fighter.currAct;
+        if (fighter.state === 'ATTACK' && currAct && fighter.atkType) {
+            const clip = currAct.getClip();
             if (clip && clip.duration > 0) {
                 // Calculate normalized time (0 to 1) through the animation
                 // Three.js handles timeScale automatically - time is already in clip time space
-                const ratio = Math.min(1.0, Math.max(0.0, fighter.currAct.time / clip.duration));
+                const ratio = Math.min(1.0, Math.max(0.0, currAct.time / clip.duration));
                 const stats = fighter.getCombatStats ? fighter.getCombatStats(fighter.atkType) : CONFIG.combat[fighter.atkType];
                 const windowRange = stats?.window || [0, 0];
 

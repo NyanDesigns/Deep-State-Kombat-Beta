@@ -48,8 +48,14 @@ export class AIController {
         // Don't make decisions if fighter is in a locked state
         if (fighter.state === 'ATTACK' || fighter.state === 'STUN' || 
             fighter.state === 'DEAD' || fighter.state === 'WIN') {
+            // Clear movement in locked states
+            fighter.desiredVelocity.set(0, 0, 0);
             return;
         }
+        
+        // Check animation priority before actions
+        const currentPriority = fighter.animationController?.getCurrentPriority() || 0;
+        const canInterrupt = currentPriority < 40; // Can interrupt locomotion/jump/crouch
 
         // Update timers
         this.decisionTimer -= dt;
@@ -72,8 +78,12 @@ export class AIController {
         const opponentState = opponent.state;
         
         // Detect opponent state changes (especially attacks)
+        // Also check animation state for better awareness
+        const opponentAnimState = opponent.animationController?.getCurrentAnimationState() || opponentState;
+        const opponentAnimPriority = opponent.animationController?.getCurrentPriority() || 0;
+        
         if (opponentState !== this.lastOpponentState) {
-            if (opponentState === 'ATTACK') {
+            if (opponentState === 'ATTACK' && opponentAnimPriority >= 40) {
                 this.opponentAttackDetected = true;
                 this.reactionTimer = this.reactionWindow;
             }
@@ -83,7 +93,7 @@ export class AIController {
         // High-priority: React to opponent attacks
         if (this.opponentAttackDetected && this.reactionTimer > 0) {
             this.currentState = this.STATE_REACTION;
-            this.handleReaction(fighter, dt, opponent, distance, collisionSystem);
+            this.handleReaction(fighter, dt, opponent, distance, collisionSystem, opponentAnimState);
             if (this.reactionTimer <= 0) {
                 this.opponentAttackDetected = false;
             }
@@ -113,9 +123,20 @@ export class AIController {
     }
 
     checkAttackOpportunity(fighter, opponent, distance, collisionSystem, fighterStPercent, opponentState) {
-        // Must be in IDLE state to attack
-        if (fighter.state !== 'IDLE') {
+        // Must be in IDLE or WALK state to attack
+        if (fighter.state !== 'IDLE' && fighter.state !== 'WALK') {
             return { shouldAttack: false };
+        }
+        
+        // Check opponent animation timing
+        const opponentAnim = opponent.animationController?.getCurrentAnimation();
+        let opponentAnimTiming = 0.5; // Default mid-animation
+        
+        if (opponentAnim) {
+            const clip = opponentAnim.getClip();
+            if (clip && clip.duration > 0) {
+                opponentAnimTiming = opponentAnim.time / clip.duration;
+            }
         }
 
         // Must have stamina and cooldown expired
@@ -146,10 +167,23 @@ export class AIController {
             preferHeavy = true;
             cooldown = 0.15; // Faster attacks when opponent is vulnerable
         } else if (opponentState === 'ATTACK') {
-            // Opponent is attacking - punish with counter-attack
-            attackChance = 0.85; // 85% chance to counter
-            preferHeavy = distance < 2.0;
-            cooldown = 0.2;
+            // Opponent is attacking - use animation timing for better decisions
+            if (opponentAnimTiming > 0.6) {
+                // Opponent in recovery - high chance to counter
+                attackChance = 0.9;
+                preferHeavy = distance < 2.0;
+                cooldown = 0.2;
+            } else if (opponentAnimTiming < 0.2) {
+                // Opponent in startup - good chance to counter
+                attackChance = 0.7;
+                preferHeavy = distance < 2.0;
+                cooldown = 0.2;
+            } else {
+                // Opponent in active frames - lower chance
+                attackChance = 0.5;
+                preferHeavy = false;
+                cooldown = 0.25;
+            }
         } else if (opponentState === 'IDLE') {
             // Opponent is idle - good opportunity
             if (distance <= lightRange) {
@@ -235,7 +269,7 @@ export class AIController {
         }
     }
 
-    handleReaction(fighter, dt, opponent, distance, collisionSystem) {
+    handleReaction(fighter, dt, opponent, distance, collisionSystem, opponentAnimState) {
         // Determine what type of attack opponent is using
         const opponentAttackType = opponent.atkType; // Could be 'light', 'heavy', 'leftHand', 'rightHand', 'leftLeg', 'rightLeg'
         
@@ -244,6 +278,17 @@ export class AIController {
                               opponentAttackType === 'leftLeg' || 
                               opponentAttackType === 'rightLeg' ||
                               (opponent.isHeavyAttack && opponent.isHeavyAttack(opponentAttackType));
+        
+        // Get opponent's current animation for timing
+        const opponentAnim = opponent.animationController?.getCurrentAnimation();
+        let attackTiming = 0.5; // Default mid-animation
+        
+        if (opponentAnim) {
+            const clip = opponentAnim.getClip();
+            if (clip && clip.duration > 0) {
+                attackTiming = opponentAnim.time / clip.duration;
+            }
+        }
         
         // Get attack range
         const attackStats = opponent.getCombatStats ? opponent.getCombatStats(opponentAttackType || 'leftHand') : CONFIG.combat[opponentAttackType];
@@ -265,34 +310,84 @@ export class AIController {
             return;
         }
 
-        // React based on attack type (only if in IDLE state and cooldown expired)
-        if (isHeavyAttack) {
-            // Heavy attacks are low (legs) - jump to avoid
-            if (fighter.state === 'IDLE' && fighter.actions['jump'] && this.jumpCooldown <= 0) {
-                fighter.jump();
-                this.jumpCooldown = 0.5; // Cooldown after jump
+        // React based on attack type and timing
+        if (attackTiming < 0.3) {
+            // Early in attack - can dodge
+            if (isHeavyAttack) {
+                // Heavy attacks are low (legs) - jump to avoid
+                if ((fighter.state === 'IDLE' || fighter.state === 'WALK') && fighter.actions['jump'] && this.jumpCooldown <= 0) {
+                    fighter.jump();
+                    this.jumpCooldown = 0.5; // Cooldown after jump
+                } else {
+                    // Can't jump, try to retreat
+                    if (fighter.state === 'IDLE' || fighter.state === 'WALK') {
+                        this.moveAway(fighter, opponent, dt);
+                    }
+                }
             } else {
-                // Can't jump, try to retreat
-                if (fighter.state === 'IDLE') {
+                // Light attacks are high (hands) - crouch to avoid
+                if ((fighter.state === 'IDLE' || fighter.state === 'WALK') && fighter.actions['crouch'] && this.crouchCooldown <= 0) {
+                    fighter.crouch();
+                    this.crouchCooldown = 0.5; // Cooldown after crouch
+                } else if (fighter.state === 'CROUCH' && attackTiming > 0.5) {
+                    // If already crouched and attack is past its active frames, exit crouch
+                    fighter.exitCrouch();
+                } else {
+                    // Can't crouch, try to retreat
+                    if (fighter.state === 'IDLE' || fighter.state === 'WALK') {
+                        this.moveAway(fighter, opponent, dt);
+                    }
+                }
+            }
+        } else if (attackTiming > 0.7) {
+            // Late in attack - can counter
+            const attackOpportunity = this.checkAttackOpportunity(fighter, opponent, distance, collisionSystem, 
+                                                                  fighter.st / fighter.maxSt, opponentAnimState);
+            if (attackOpportunity.shouldAttack) {
+                fighter.attack(attackOpportunity.attackType);
+                this.attackCooldown = attackOpportunity.cooldown;
+            } else {
+                // Can't counter, retreat
+                if (fighter.state === 'IDLE' || fighter.state === 'WALK') {
                     this.moveAway(fighter, opponent, dt);
                 }
             }
         } else {
-            // Light attacks are high (hands) - crouch to avoid
-            if (fighter.state === 'IDLE' && fighter.actions['crouch'] && this.crouchCooldown <= 0) {
-                fighter.crouch();
-                this.crouchCooldown = 0.5; // Cooldown after crouch
-            } else {
-                // Can't crouch, try to retreat
-                if (fighter.state === 'IDLE') {
-                    this.moveAway(fighter, opponent, dt);
-                }
+            // Mid-attack - retreat or exit crouch if crouched
+            if (fighter.state === 'CROUCH') {
+                // Exit crouch if attack is in active frames (mid-attack)
+                fighter.exitCrouch();
+            } else if (fighter.state === 'IDLE' || fighter.state === 'WALK') {
+                this.moveAway(fighter, opponent, dt);
             }
         }
     }
 
     executeBehavior(fighter, dt, opponent, distance, collisionSystem, 
                     fighterHpPercent, fighterStPercent, opponentHpPercent, opponentStPercent) {
+        // Exit crouch if in CROUCH state and not reacting to an attack
+        if (fighter.state === 'CROUCH' && !this.opponentAttackDetected) {
+            // Check if opponent is not attacking or attack has passed
+            const opponentAnim = opponent.animationController?.getCurrentAnimation();
+            let shouldExitCrouch = true;
+            
+            if (opponentAnim) {
+                const clip = opponentAnim.getClip();
+                if (clip && clip.duration > 0) {
+                    const attackTiming = opponentAnim.time / clip.duration;
+                    const opponentState = opponent.state;
+                    // Stay crouched if opponent is still in active attack frames
+                    if (opponentState === 'ATTACK' && attackTiming < 0.7) {
+                        shouldExitCrouch = false;
+                    }
+                }
+            }
+            
+            if (shouldExitCrouch) {
+                fighter.exitCrouch();
+            }
+        }
+        
         switch (this.currentState) {
             case this.STATE_DEFENSIVE:
                 this.executeDefensive(fighter, dt, opponent, distance, collisionSystem, fighterHpPercent, fighterStPercent);
@@ -331,10 +426,8 @@ export class AIController {
             }
             
             if (this.idleTimer > 0) {
-                // Stay idle, play idle animation
-                if (fighter.state === 'IDLE') {
-                    fighter.play('idle', fighter.animationFade);
-                }
+                // Stay idle - locomotion will be handled by MotionController
+                fighter.desiredVelocity.set(0, 0, 0);
             } else {
                 // Idle time expired, do small movement
                 this.isIdle = false;
@@ -380,7 +473,8 @@ export class AIController {
             }
             
             if (this.idleTimer > 0 && fighter.state === 'IDLE') {
-                fighter.play('idle', fighter.animationFade);
+                // Stay idle - locomotion will be handled by MotionController
+                fighter.desiredVelocity.set(0, 0, 0);
             } else {
                 this.isIdle = false;
             }
@@ -439,10 +533,8 @@ export class AIController {
             }
             
             if (this.idleTimer > 0) {
-                // Stay idle, play idle animation
-                if (fighter.state === 'IDLE') {
-                    fighter.play('idle', fighter.animationFade);
-                }
+                // Stay idle - locomotion will be handled by MotionController
+                fighter.desiredVelocity.set(0, 0, 0);
             } else {
                 // Idle time expired, do small spacing movement
                 this.isIdle = false;
@@ -468,32 +560,32 @@ export class AIController {
     }
 
     moveToward(fighter, opponent, dt, speedMultiplier = 1.0) {
-        // Only move if fighter is in IDLE state
-        if (fighter.state !== 'IDLE') return;
+        // Only move if fighter is in IDLE or WALK state
+        if (fighter.state !== 'IDLE' && fighter.state !== 'WALK') return;
         
         const dir = new THREE.Vector3().subVectors(opponent.mesh.position, fighter.mesh.position);
         dir.y = 0;
         if (dir.lengthSq() > 0) {
             dir.normalize();
             const moveSpeed = fighter.moveSpeed * speedMultiplier;
-            fighter.mesh.position.addScaledVector(dir, moveSpeed * dt);
-            this.keepInBounds(fighter);
-            fighter.play('walk', fighter.animationFade);
+            
+            // Set desired velocity instead of direct position manipulation
+            fighter.desiredVelocity.copy(dir).multiplyScalar(moveSpeed);
         }
     }
 
     moveAway(fighter, opponent, dt, speedMultiplier = 1.0) {
-        // Only move if fighter is in IDLE state
-        if (fighter.state !== 'IDLE') return;
+        // Only move if fighter is in IDLE or WALK state
+        if (fighter.state !== 'IDLE' && fighter.state !== 'WALK') return;
         
         const dir = new THREE.Vector3().subVectors(fighter.mesh.position, opponent.mesh.position);
         dir.y = 0;
         if (dir.lengthSq() > 0) {
             dir.normalize();
             const moveSpeed = fighter.moveSpeed * speedMultiplier;
-            fighter.mesh.position.addScaledVector(dir, moveSpeed * dt);
-            this.keepInBounds(fighter);
-            fighter.play('walk', fighter.animationFade, true); // Reverse walk animation
+            
+            // Set desired velocity with backward direction
+            fighter.desiredVelocity.copy(dir).multiplyScalar(moveSpeed);
         }
     }
 

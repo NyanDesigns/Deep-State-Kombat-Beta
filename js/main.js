@@ -622,9 +622,18 @@ function endGame(winnerId) {
     let winnerFighter = null;
     let loserFighter = null;
 
-    if (fighters.length === 2 && winnerId) {
-        winnerFighter = winnerId === 'p1' ? fighters[0] : fighters[1];
-        loserFighter = winnerId === 'p1' ? fighters[1] : fighters[0];
+    if (fighters.length === 2) {
+        if (winnerId) {
+            // Normal win case
+            winnerFighter = winnerId === 'p1' ? fighters[0] : fighters[1];
+            loserFighter = winnerId === 'p1' ? fighters[1] : fighters[0];
+        } else {
+            // Draw case - both are losers, pass both fighters
+            // For draw, we'll pass fighters[0] as "loserFighter" and fighters[1] as "winnerFighter"
+            // (they're both losers, but we need to pass both)
+            loserFighter = fighters[0];
+            winnerFighter = fighters[1]; // Using winnerFighter param to pass p2
+        }
         // Don't change state or play animations - just freeze current state
     }
 

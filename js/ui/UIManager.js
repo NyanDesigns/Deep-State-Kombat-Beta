@@ -72,11 +72,18 @@ export class UIManager {
             overlay.innerHTML = '';
         }
         
+        // Check if this is a draw
+        const isDraw = winnerId === null || winnerId === undefined;
+        
         // Get character information
         let winnerConfig = null;
         let loserConfig = null;
+        let p1Config = null;
+        let p2Config = null;
         let winnerName = winnerId === 'p1' ? 'PLAYER 1' : 'CPU';
         let loserName = winnerId === 'p1' ? 'CPU' : 'PLAYER 1';
+        let p1Name = 'PLAYER 1';
+        let p2Name = 'CPU';
         
         if (winnerFighter && winnerFighter.characterConfig) {
             winnerConfig = winnerFighter.characterConfig;
@@ -86,6 +93,19 @@ export class UIManager {
         if (loserFighter && loserFighter.characterConfig) {
             loserConfig = loserFighter.characterConfig;
             loserName = loserConfig.name || loserName;
+        }
+        
+        // For draw case, get both fighters from the parameters
+        // When it's a draw, loserFighter is p1 and winnerFighter is p2 (both are actually losers)
+        if (isDraw) {
+            if (loserFighter && loserFighter.characterConfig) {
+                p1Config = loserFighter.characterConfig;
+                p1Name = p1Config.name || 'PLAYER 1';
+            }
+            if (winnerFighter && winnerFighter.characterConfig) {
+                p2Config = winnerFighter.characterConfig;
+                p2Name = p2Config.name || 'CPU';
+            }
         }
         
         // Build image paths - only V (victory) for winner, D (defeat) for loser
@@ -98,9 +118,13 @@ export class UIManager {
         
         const winnerId_str = winnerConfig?.id || '';
         const loserId_str = loserConfig?.id || '';
+        const p1Id_str = p1Config?.id || '';
+        const p2Id_str = p2Config?.id || '';
         
         const winnerVPath = winnerId_str ? getCharacterImagePath(winnerId_str, 'V') : '';
         const loserDPath = loserId_str ? getCharacterImagePath(loserId_str, 'D') : '';
+        const p1DPath = p1Id_str ? getCharacterImagePath(p1Id_str, 'D') : '';
+        const p2DPath = p2Id_str ? getCharacterImagePath(p2Id_str, 'D') : '';
         
         // Get end screen elements
         const endScreen = document.getElementById('end-screen');
@@ -110,58 +134,103 @@ export class UIManager {
         const loserNameDisplay = document.querySelector('.character-name-loser');
         const winnerText = document.getElementById('winner-text');
         const loserText = document.getElementById('loser-text');
+        const drawText = document.getElementById('draw-text');
         
         // Show end screen
         if (endScreen) {
             endScreen.classList.add('show');
         }
         
-        // Load and show winner V PNG
-        if (winnerImg && winnerVPath) {
-            winnerImg.src = winnerVPath;
-            winnerImg.style.display = 'block';
-            winnerImg.classList.add('slide-in', 'selected');
-            winnerImg.onload = () => {
-                winnerImg.style.opacity = '1';
-                winnerImg.style.visibility = 'visible';
-            };
-            winnerImg.onerror = () => {
-                winnerImg.style.display = 'none';
-            };
-        }
-        
-        // Load and show loser D PNG
-        if (loserImg && loserDPath) {
-            loserImg.src = loserDPath;
-            loserImg.style.display = 'block';
-            loserImg.classList.add('slide-in', 'selected');
-            loserImg.onload = () => {
-                loserImg.style.opacity = '1';
-                loserImg.style.visibility = 'visible';
-            };
-            loserImg.onerror = () => {
-                loserImg.style.display = 'none';
-            };
-        }
-        
-        // Update name displays
-        if (winnerNameDisplay) {
-            winnerNameDisplay.textContent = winnerName;
-            winnerNameDisplay.classList.add('loaded', 'pop-visible');
-        }
-        
-        if (loserNameDisplay) {
-            loserNameDisplay.textContent = loserName;
-            loserNameDisplay.classList.add('loaded', 'pop-visible');
-        }
-        
-        // Show winner/loser text
-        if (winnerText) {
-            winnerText.classList.add('visible');
-        }
-        
-        if (loserText) {
-            loserText.classList.add('visible');
+        if (isDraw) {
+            // Draw case: both are losers, show D PNGs
+            // Hide winner/loser text, show DRAW text
+            if (winnerText) winnerText.classList.remove('visible');
+            if (loserText) loserText.classList.remove('visible');
+            if (drawText) drawText.classList.add('visible');
+            
+            // Show both as losers with D PNGs
+            if (winnerImg && p1DPath) {
+                winnerImg.src = p1DPath;
+                winnerImg.style.display = 'block';
+                winnerImg.classList.add('slide-in', 'selected', 'draw-loser');
+                winnerImg.onload = () => {
+                    winnerImg.style.opacity = '1';
+                    winnerImg.style.visibility = 'visible';
+                };
+                winnerImg.onerror = () => {
+                    winnerImg.style.display = 'none';
+                };
+            }
+            
+            if (loserImg && p2DPath) {
+                loserImg.src = p2DPath;
+                loserImg.style.display = 'block';
+                loserImg.classList.add('slide-in', 'selected');
+                loserImg.onload = () => {
+                    loserImg.style.opacity = '1';
+                    loserImg.style.visibility = 'visible';
+                };
+                loserImg.onerror = () => {
+                    loserImg.style.display = 'none';
+                };
+            }
+            
+            // Update name displays - both use loser styling
+            if (winnerNameDisplay) {
+                winnerNameDisplay.textContent = p1Name;
+                winnerNameDisplay.classList.add('loaded', 'pop-visible');
+            }
+            
+            if (loserNameDisplay) {
+                loserNameDisplay.textContent = p2Name;
+                loserNameDisplay.classList.add('loaded', 'pop-visible');
+            }
+        } else {
+            // Normal win case: winner and loser
+            // Hide DRAW text, show winner/loser text
+            if (drawText) drawText.classList.remove('visible');
+            if (winnerText) winnerText.classList.add('visible');
+            if (loserText) loserText.classList.add('visible');
+            
+            // Load and show winner V PNG
+            if (winnerImg && winnerVPath) {
+                winnerImg.src = winnerVPath;
+                winnerImg.style.display = 'block';
+                winnerImg.classList.remove('draw-loser'); // Remove draw-loser class for normal win
+                winnerImg.classList.add('slide-in', 'selected');
+                winnerImg.onload = () => {
+                    winnerImg.style.opacity = '1';
+                    winnerImg.style.visibility = 'visible';
+                };
+                winnerImg.onerror = () => {
+                    winnerImg.style.display = 'none';
+                };
+            }
+            
+            // Load and show loser D PNG
+            if (loserImg && loserDPath) {
+                loserImg.src = loserDPath;
+                loserImg.style.display = 'block';
+                loserImg.classList.add('slide-in', 'selected');
+                loserImg.onload = () => {
+                    loserImg.style.opacity = '1';
+                    loserImg.style.visibility = 'visible';
+                };
+                loserImg.onerror = () => {
+                    loserImg.style.display = 'none';
+                };
+            }
+            
+            // Update name displays
+            if (winnerNameDisplay) {
+                winnerNameDisplay.textContent = winnerName;
+                winnerNameDisplay.classList.add('loaded', 'pop-visible');
+            }
+            
+            if (loserNameDisplay) {
+                loserNameDisplay.textContent = loserName;
+                loserNameDisplay.classList.add('loaded', 'pop-visible');
+            }
         }
 
         // Setup button event listeners and keyboard navigation

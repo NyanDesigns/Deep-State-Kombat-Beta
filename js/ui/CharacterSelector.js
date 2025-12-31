@@ -672,9 +672,13 @@ export class CharacterSelector {
             this.clearCardFocus(targetSlot);
         });
 
-        // Click handler for adding new character
+        // Click handler for adding new character - show "Coming Soon" instead
         card.addEventListener('click', () => {
-            this.showAddNewCharacterDialog();
+            // Determine which player slot this would be for
+            const availableSlot = !this.selectedCharacters.p1 ? 'p1' : 'p2';
+            
+            // Show "Coming Soon" text with flashing and bigger size (same as unavailable characters)
+            this.showComingSoonText(availableSlot, true);
         });
 
         return card;
@@ -2216,7 +2220,9 @@ export class CharacterSelector {
         if (cellType === 'random') {
             this.selectRandomCharacter();
         } else if (cellType === 'add-new') {
-            this.showAddNewCharacterDialog();
+            // Show "Coming Soon" text instead of opening file dialog
+            const availableSlot = !this.selectedCharacters.p1 ? 'p1' : 'p2';
+            this.showComingSoonText(availableSlot, true);
         } else {
             const character = this.characterManager.getCharacter(cellType);
             if (character) {

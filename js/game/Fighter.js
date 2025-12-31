@@ -160,8 +160,19 @@ export class Fighter {
 
         // Multi-sphere attack hitboxes: each hand has fist+elbow, each leg has foot+knee
         // Made much bigger for easier hits - all radii doubled
-        const handSizes = (characterConfig?.hitboxes?.attackHands || [0.32, 0.28, 0.32, 0.28]).map(size => size * 2);
-        const legSizes = (characterConfig?.hitboxes?.attackLegs || [0.38, 0.32, 0.38, 0.32]).map(size => size * 2);
+        // Trump's punch and kick hitboxes (attackHands and attackLegs) are doubled again (4x total, 2x current)
+        const baseHandSizes = characterConfig?.hitboxes?.attackHands || [0.32, 0.28, 0.32, 0.28];
+        const handSizes = baseHandSizes.map(size => {
+            const doubled = size * 2;
+            // Double again for Trump punches only
+            return (characterConfig?.id === 'trump') ? doubled * 2 : doubled;
+        });
+        const baseLegSizes = characterConfig?.hitboxes?.attackLegs || [0.38, 0.32, 0.38, 0.32];
+        const legSizes = baseLegSizes.map(size => {
+            const doubled = size * 2;
+            // Double again for Trump kicks only
+            return (characterConfig?.id === 'trump') ? doubled * 2 : doubled;
+        });
 
         this.attackSpheres = {
             hands: [

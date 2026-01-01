@@ -23,6 +23,7 @@ import { SetupScreen } from './ui/SetupScreen.js';
 import { PreviewScene } from './ui/PreviewScene.js';
 import { CharacterSelector } from './ui/CharacterSelector.js';
 import { UIStateController } from './ui/UIStateController.js';
+import { LoadingScreen } from './ui/LoadingScreen.js';
 
 // Character systems
 import { CharacterManager } from './characters/CharacterManager.js';
@@ -45,6 +46,7 @@ let inputHandler, effectsSystem;
 let appStateManager, uiStateController;
 let fireParticleSystem = null;
 let imagePreloader = null;
+let loadingScreen = null;
 
 function setupCallbacks() {
     gameState.onStateChange = (newState, oldState) => {
@@ -196,6 +198,7 @@ function bootstrap() {
     // UI systems
     uiManager = new UIManager();
     setupScreen = new SetupScreen();
+    loadingScreen = new LoadingScreen();
 
     // Character systems
     characterManager = new CharacterManager();
@@ -257,6 +260,7 @@ async function initializeSystems() {
     uiManager.init();
     setupScreen.init();
     previewScene.init();
+    loadingScreen.init();
 
     // Restore debug options if saved
     const savedSettings = storageManager.loadGameSettings();
@@ -271,6 +275,100 @@ async function initializeSystems() {
     // Show setup screen and set game state
     gameState.setState('SETUP');
     setupScreen.show();
+}
+
+/**
+ * Load initial 3D character models during tutorial
+ * @param {Function} onProgress - Progress callback (current, total, characterId)
+ * @returns {Promise<void>}
+ */
+async function loadInitialCharacterModels(onProgress = null) {
+    const charactersToLoad = ['trump', 'brandon']; // Default characters for tutorial
+    const total = charactersToLoad.length;
+    let loaded = 0;
+
+    const loadPromises = charactersToLoad.map(async (charId) => {
+        try {
+            if (!characterManager.isCharacterLoaded(charId)) {
+                await characterManager.loadCharacter(charId);
+            }
+            loaded++;
+            if (onProgress) {
+                onProgress(loaded, total, charId);
+            }
+        } catch (error) {
+            console.warn(`Failed to load character ${charId} during tutorial:`, error);
+            loaded++; // Count as loaded even if failed to prevent hanging
+            if (onProgress) {
+                onProgress(loaded, total, charId);
+            }
+        }
+    });
+
+    await Promise.all(loadPromises);
+}
+
+/**
+ * Show tutorial loading screen and wait for models
+ * @returns {Promise<void>}
+ */
+async function showTutorialScreen() {
+    if (!loadingScreen) return;
+
+    // Ensure setup screen is hidden during tutorial
+    if (setupScreen) {
+        setupScreen.hide();
+    }
+    const setupScreenEl = document.getElementById('setup-screen');
+    if (setupScreenEl) {
+        setupScreenEl.style.display = 'none';
+        setupScreenEl.style.visibility = 'hidden';
+    }
+
+    // Show loading screen
+    loadingScreen.show();
+
+    // Start both minimum wait time and model loading in parallel
+    const minWaitTime = new Promise((resolve) => {
+        setTimeout(() => resolve(), 2000); // 2 second minimum
+    });
+
+    // Track loading progress
+    let loadingProgress = 0;
+    const maxProgress = 95; // Leave room for completion
+
+    const modelLoadingPromise = loadInitialCharacterModels((loaded, total, characterId) => {
+        // Update progress based on model loading
+        const modelProgress = (loaded / total) * maxProgress;
+        loadingProgress = Math.max(loadingProgress, modelProgress);
+        if (loadingScreen) {
+            loadingScreen.updateProgress(loadingProgress);
+        }
+        console.log(`Tutorial loading: ${characterId} (${loaded}/${total})`);
+    });
+
+    // Wait for both minimum time and models to be ready
+    await Promise.all([minWaitTime, modelLoadingPromise]);
+
+    // Ensure progress is at max before completion
+    loadingProgress = 100;
+    if (loadingScreen) {
+        loadingScreen.updateProgress(100);
+    }
+
+    // Small delay to show 100% before hiding
+    await new Promise(resolve => setTimeout(resolve, 300));
+
+    // Mark tutorial as complete
+    storageManager.markTutorialComplete();
+
+    // Hide loading screen
+    if (loadingScreen) {
+        loadingScreen.hide();
+    }
+
+    // Wait for fade-out animation
+    await new Promise(resolve => setTimeout(resolve, 500));
 }
 
 /**
@@ -396,12 +494,23 @@ async function init() {
         storageManager = new StorageManager();
         appStateManager = new AppStateManager(storageManager);
         
+        // Initialize tutorial session tracking (detects hard reload)
+        storageManager.initTutorialSession();
+        
         // Bootstrap: Create all systems
         await appStateManager.bootstrap(bootstrap);
         
         // Initialize: Initialize systems and run loading sequence
         await appStateManager.initialize(async () => {
             await initializeSystems();
+            
+            // Check if tutorial needs to be shown (first visit or hard reload)
+            const needsTutorial = !storageManager.hasSeenTutorial();
+            
+            if (needsTutorial) {
+                // Show tutorial loading screen and load initial models
+                await showTutorialScreen();
+            }
             
             // Determine loading strategy based on app state
             const isFirstVisit = storageManager.isFirstVisit();

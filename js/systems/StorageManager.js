@@ -8,6 +8,7 @@ export class StorageManager {
         this.SESSION_STATE_KEY = 'deepKombat_sessionState';
         this.APP_VERSION_KEY = 'deepKombat_appVersion';
         this.USER_PREF_KEY = 'deepKombat_userPreferences';
+        this.TUTORIAL_COMPLETE_KEY = 'deepKombat_tutorialComplete';
         this.APP_VERSION = '1.0.0';
     }
 
@@ -227,6 +228,88 @@ export class StorageManager {
         
         // Invalidate on major version change (first number)
         return stored[0] !== current[0];
+    }
+
+    /**
+     * Check if tutorial has been completed
+     * Checks both localStorage (persistent) and sessionStorage (hard reload detection)
+     * @returns {boolean} True if tutorial has been seen/completed (accounting for hard reload)
+     */
+    hasSeenTutorial() {
+        try {
+            // Check if this is a hard reload by seeing if sessionStorage flag exists
+            // Hard reload (Ctrl+Shift+R) clears sessionStorage, so flag won't exist
+            const sessionFlag = sessionStorage.getItem('deepKombat_tutorialSession');
+            
+            // If session flag exists, this is a normal reload - check localStorage
+            if (sessionFlag === 'shown') {
+                const data = localStorage.getItem(this.TUTORIAL_COMPLETE_KEY);
+                if (!data) return false;
+                const tutorialData = JSON.parse(data);
+                return tutorialData.complete === true;
+            }
+            
+            // No session flag means this might be a hard reload or first visit
+            // For hard reload, we want to show tutorial again, so return false
+            // We'll set the session flag after checking to mark this session
+            return false;
+        } catch (error) {
+            console.warn('Failed to check tutorial status:', error);
+            return false;
+        }
+    }
+
+    /**
+     * Mark tutorial as complete
+     * Sets both localStorage (persistent) and sessionStorage (session tracking)
+     */
+    markTutorialComplete() {
+        try {
+            const tutorialData = {
+                complete: true,
+                completedAt: Date.now(),
+                version: this.APP_VERSION
+            };
+            localStorage.setItem(this.TUTORIAL_COMPLETE_KEY, JSON.stringify(tutorialData));
+            
+            // Set sessionStorage flag to indicate tutorial was shown in this session
+            // This flag will be cleared on hard reload (Ctrl+Shift+R), forcing tutorial to show again
+            sessionStorage.setItem('deepKombat_tutorialSession', 'shown');
+        } catch (error) {
+            console.warn('Failed to mark tutorial complete:', error);
+        }
+    }
+
+    /**
+     * Initialize tutorial session tracking
+     * Called on app startup to set up session tracking
+     */
+    initTutorialSession() {
+        try {
+            // Check if sessionStorage flag exists from previous normal reload
+            const sessionFlag = sessionStorage.getItem('deepKombat_tutorialSession');
+            
+            // If flag doesn't exist, this could be:
+            // 1. First visit (never seen tutorial)
+            // 2. Hard reload (Ctrl+Shift+R) which cleared sessionStorage
+            // In either case, we want to show tutorial if localStorage says it was completed
+            // (meaning it's a hard reload and we should reset it)
+            
+            if (!sessionFlag) {
+                // Check if tutorial was previously completed
+                const data = localStorage.getItem(this.TUTORIAL_COMPLETE_KEY);
+                if (data) {
+                    // Tutorial was completed before, but sessionStorage was cleared
+                    // This means hard reload - clear localStorage to force tutorial
+                    localStorage.removeItem(this.TUTORIAL_COMPLETE_KEY);
+                }
+            }
+            
+            // Don't set session flag here - let markTutorialComplete() do it after tutorial is shown
+            // This way, if tutorial completes, flag is set. If it doesn't show, flag stays unset.
+        } catch (error) {
+            console.warn('Failed to initialize tutorial session:', error);
+        }
     }
 
     /**

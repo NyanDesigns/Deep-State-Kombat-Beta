@@ -1,0 +1,229 @@
+/* Loading Screen - Tutorial and Loading Display */
+
+#loading-screen {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: radial-gradient(ellipse at center, rgba(20, 20, 30, 0.95) 0%, rgba(5, 5, 10, 0.98) 100%);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: space-between;
+    padding: 60px 40px 40px;
+    box-sizing: border-box;
+    z-index: 100;
+    pointer-events: auto;
+    font-family: 'Courier New', monospace;
+    color: white;
+    opacity: 0;
+    transition: opacity 0.5s ease-in-out;
+}
+
+/* Game Title */
+.loading-screen-title {
+    font-size: 4.5em;
+    font-weight: 900;
+    text-transform: uppercase;
+    text-align: center;
+    letter-spacing: 0.05em;
+    color: #fff;
+    text-shadow: 
+        0 0 10px rgba(255, 165, 0, 0.8),
+        0 0 20px rgba(255, 140, 0, 0.6),
+        0 0 30px rgba(255, 100, 0, 0.4),
+        2px 2px 0px rgba(0, 0, 0, 0.8),
+        4px 4px 0px rgba(0, 0, 0, 0.6);
+    margin-top: 20px;
+    animation: titleGlow 2s ease-in-out infinite alternate;
+}
+
+@keyframes titleGlow {
+    0% {
+        text-shadow: 
+            0 0 10px rgba(255, 165, 0, 0.8),
+            0 0 20px rgba(255, 140, 0, 0.6),
+            0 0 30px rgba(255, 100, 0, 0.4),
+            2px 2px 0px rgba(0, 0, 0, 0.8),
+            4px 4px 0px rgba(0, 0, 0, 0.6);
+    }
+    100% {
+        text-shadow: 
+            0 0 15px rgba(255, 165, 0, 1),
+            0 0 30px rgba(255, 140, 0, 0.8),
+            0 0 45px rgba(255, 100, 0, 0.6),
+            2px 2px 0px rgba(0, 0, 0, 0.8),
+            4px 4px 0px rgba(0, 0, 0, 0.6);
+    }
+}
+
+/* Tutorial Section */
+.loading-screen-tutorial {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+    max-width: 800px;
+    width: 100%;
+    padding: 40px;
+    background: 
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.03) 0px, rgba(255, 255, 255, 0.03) 1px, transparent 1px, transparent 20px),
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.03) 0px, rgba(255, 255, 255, 0.03) 1px, transparent 1px, transparent 20px),
+        rgba(0, 0, 0, 0.4);
+    border: 3px solid rgba(255, 165, 0, 0.4);
+    clip-path: polygon(
+        0 17px, 17px 0, 
+        calc(100% - 17px) 0, 100% 17px, 
+        100% calc(100% - 17px), calc(100% - 17px) 100%, 
+        17px 100%, 0 calc(100% - 17px)
+    );
+    box-shadow: 
+        0 0 0 2px rgba(255, 165, 0, 0.2),
+        inset 0 0 51px rgba(0, 0, 0, 0.8);
+}
+
+.tutorial-section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.tutorial-section-title {
+    font-size: 1.4em;
+    font-weight: 900;
+    color: rgba(255, 165, 0, 0.9);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    text-shadow: 0 0 10px rgba(255, 165, 0, 0.5);
+    margin-bottom: 8px;
+}
+
+.tutorial-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    align-items: center;
+}
+
+.tutorial-control-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 1.1em;
+}
+
+.tutorial-key {
+    display: inline-block;
+    padding: 8px 16px;
+    background: rgba(255, 165, 0, 0.2);
+    border: 2px solid rgba(255, 165, 0, 0.6);
+    border-radius: 4px;
+    font-family: 'Courier New', monospace;
+    font-weight: 900;
+    font-size: 0.9em;
+    color: rgba(255, 165, 0, 1);
+    text-shadow: 0 0 5px rgba(255, 165, 0, 0.8);
+    box-shadow: 
+        0 0 10px rgba(255, 165, 0, 0.3),
+        inset 0 0 10px rgba(255, 165, 0, 0.1);
+    min-width: 50px;
+    text-align: center;
+    letter-spacing: 0.05em;
+}
+
+.tutorial-description {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 1em;
+    text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* Loading Bar Container */
+.loading-bar-container {
+    width: 100%;
+    max-width: 800px;
+    height: 30px;
+    background: rgba(0, 0, 0, 0.6);
+    border: 3px solid rgba(255, 165, 0, 0.4);
+    clip-path: polygon(
+        0 8px, 8px 0, 
+        calc(100% - 8px) 0, 100% 8px, 
+        100% calc(100% - 8px), calc(100% - 8px) 100%, 
+        8px 100%, 0 calc(100% - 8px)
+    );
+    box-shadow: 
+        0 0 0 2px rgba(255, 165, 0, 0.2),
+        inset 0 0 20px rgba(0, 0, 0, 0.8);
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+.loading-bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(
+        90deg,
+        rgba(255, 165, 0, 0.8) 0%,
+        rgba(255, 140, 0, 1) 50%,
+        rgba(255, 165, 0, 0.8) 100%
+    );
+    box-shadow: 
+        0 0 20px rgba(255, 165, 0, 0.6),
+        inset 0 0 10px rgba(255, 255, 255, 0.2);
+    transition: width 0.3s ease-out;
+    position: relative;
+    overflow: hidden;
+}
+
+/* Animated shine effect on loading bar */
+.loading-bar-fill::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+        90deg,
+        transparent 0%,
+        rgba(255, 255, 255, 0.4) 50%,
+        transparent 100%
+    );
+    animation: loadingShine 2s infinite;
+}
+
+@keyframes loadingShine {
+    0% {
+        left: -100%;
+    }
+    100% {
+        left: 100%;
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .loading-screen-title {
+        font-size: 3em;
+    }
+
+    .loading-screen-tutorial {
+        padding: 30px 20px;
+        gap: 20px;
+    }
+
+    .tutorial-section-title {
+        font-size: 1.2em;
+    }
+
+    .tutorial-control-item {
+        font-size: 1em;
+    }
+
+    .tutorial-key {
+        padding: 6px 12px;
+        font-size: 0.85em;
+        min-width: 40px;
+    }
+}
+

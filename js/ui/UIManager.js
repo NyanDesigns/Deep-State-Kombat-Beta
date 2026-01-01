@@ -75,38 +75,33 @@ export class UIManager {
         // Check if this is a draw
         const isDraw = winnerId === null || winnerId === undefined;
         
-        // Get character information
-        let winnerConfig = null;
-        let loserConfig = null;
-        let p1Config = null;
-        let p2Config = null;
-        let winnerName = winnerId === 'p1' ? 'PLAYER 1' : 'CPU';
-        let loserName = winnerId === 'p1' ? 'CPU' : 'PLAYER 1';
-        let p1Name = 'PLAYER 1';
-        let p2Name = 'CPU';
+        // Identify which fighter is p1 and which is p2 (Player 1 always left, Player 2 always right)
+        let p1Fighter = null;
+        let p2Fighter = null;
         
-        if (winnerFighter && winnerFighter.characterConfig) {
-            winnerConfig = winnerFighter.characterConfig;
-            winnerName = winnerConfig.name || winnerName;
+        // Determine p1 and p2 from fighter id
+        if (winnerFighter && winnerFighter.id === 'p1') {
+            p1Fighter = winnerFighter;
+        } else if (loserFighter && loserFighter.id === 'p1') {
+            p1Fighter = loserFighter;
         }
         
-        if (loserFighter && loserFighter.characterConfig) {
-            loserConfig = loserFighter.characterConfig;
-            loserName = loserConfig.name || loserName;
+        if (winnerFighter && winnerFighter.id === 'p2') {
+            p2Fighter = winnerFighter;
+        } else if (loserFighter && loserFighter.id === 'p2') {
+            p2Fighter = loserFighter;
         }
         
-        // For draw case, get both fighters from the parameters
-        // When it's a draw, loserFighter is p1 and winnerFighter is p2 (both are actually losers)
-        if (isDraw) {
-            if (loserFighter && loserFighter.characterConfig) {
-                p1Config = loserFighter.characterConfig;
-                p1Name = p1Config.name || 'PLAYER 1';
-            }
-            if (winnerFighter && winnerFighter.characterConfig) {
-                p2Config = winnerFighter.characterConfig;
-                p2Name = p2Config.name || 'CPU';
-            }
-        }
+        // Get character configurations and names
+        let p1Config = p1Fighter?.characterConfig || null;
+        let p2Config = p2Fighter?.characterConfig || null;
+        
+        let p1Name = p1Config?.name || 'PLAYER 1';
+        let p2Name = p2Config?.name || 'CPU';
+        
+        // Determine if p1 won, p2 won, or draw
+        const p1Won = winnerId === 'p1';
+        const p2Won = winnerId === 'p2';
         
         // Build image paths - only V (victory) for winner, D (defeat) for loser
         const getCharacterImagePath = (characterId, suffix) => {
@@ -116,25 +111,29 @@ export class UIManager {
             return `assets/characters/${folderName}/visuals/${baseId}${suffix}.png`;
         };
         
-        const winnerId_str = winnerConfig?.id || '';
-        const loserId_str = loserConfig?.id || '';
         const p1Id_str = p1Config?.id || '';
         const p2Id_str = p2Config?.id || '';
         
-        const winnerVPath = winnerId_str ? getCharacterImagePath(winnerId_str, 'V') : '';
-        const loserDPath = loserId_str ? getCharacterImagePath(loserId_str, 'D') : '';
-        const p1DPath = p1Id_str ? getCharacterImagePath(p1Id_str, 'D') : '';
-        const p2DPath = p2Id_str ? getCharacterImagePath(p2Id_str, 'D') : '';
+        // Determine PNG paths based on who won
+        const p1PNGPath = isDraw ? (p1Id_str ? getCharacterImagePath(p1Id_str, 'D') : '') : 
+                           (p1Won ? (p1Id_str ? getCharacterImagePath(p1Id_str, 'V') : '') : 
+                            (p1Id_str ? getCharacterImagePath(p1Id_str, 'D') : ''));
+        
+        const p2PNGPath = isDraw ? (p2Id_str ? getCharacterImagePath(p2Id_str, 'D') : '') : 
+                           (p2Won ? (p2Id_str ? getCharacterImagePath(p2Id_str, 'V') : '') : 
+                            (p2Id_str ? getCharacterImagePath(p2Id_str, 'D') : ''));
         
         // Get end screen elements
         const endScreen = document.getElementById('end-screen');
-        const winnerImg = document.getElementById('winner-background-png-image');
-        const loserImg = document.getElementById('loser-background-png-image');
-        const winnerNameDisplay = document.querySelector('.character-name-winner');
-        const loserNameDisplay = document.querySelector('.character-name-loser');
-        const winnerText = document.getElementById('winner-text');
-        const loserText = document.getElementById('loser-text');
+        const winnerImg = document.getElementById('winner-background-png-image'); // Left side (always p1)
+        const loserImg = document.getElementById('loser-background-png-image'); // Right side (always p2)
+        const winnerNameDisplay = document.querySelector('.character-name-winner'); // Left side (always p1)
+        const loserNameDisplay = document.querySelector('.character-name-loser'); // Right side (always p2)
+        const winnerText = document.getElementById('winner-text'); // Left side text
+        const loserText = document.getElementById('loser-text'); // Right side text
         const drawText = document.getElementById('draw-text');
+        const player1Label = document.getElementById('player1-label'); // Player 1 label (left, under winner text)
+        const player2Label = document.getElementById('player2-label'); // Player 2 label (right, under loser text)
         
         // Show end screen
         if (endScreen) {
@@ -144,13 +143,31 @@ export class UIManager {
         if (isDraw) {
             // Draw case: both are losers, show D PNGs
             // Hide winner/loser text, show DRAW text
-            if (winnerText) winnerText.classList.remove('visible');
-            if (loserText) loserText.classList.remove('visible');
+            if (winnerText) {
+                winnerText.classList.remove('visible');
+                winnerText.style.left = '';
+                winnerText.style.right = '';
+                winnerText.className = 'winner-text'; // Reset to default class
+            }
+            if (loserText) {
+                loserText.classList.remove('visible');
+                loserText.style.left = '';
+                loserText.style.right = '';
+                loserText.className = 'loser-text'; // Reset to default class
+            }
             if (drawText) drawText.classList.add('visible');
             
-            // Show both as losers with D PNGs
-            if (winnerImg && p1DPath) {
-                winnerImg.src = p1DPath;
+            // Hide player labels in draw case (since winner/loser text is hidden)
+            if (player1Label) {
+                player1Label.classList.remove('visible');
+            }
+            if (player2Label) {
+                player2Label.classList.remove('visible');
+            }
+            
+            // Show p1 on left with D PNG
+            if (winnerImg && p1PNGPath) {
+                winnerImg.src = p1PNGPath;
                 winnerImg.style.display = 'block';
                 winnerImg.classList.add('slide-in', 'selected', 'draw-loser');
                 winnerImg.onload = () => {
@@ -162,8 +179,9 @@ export class UIManager {
                 };
             }
             
-            if (loserImg && p2DPath) {
-                loserImg.src = p2DPath;
+            // Show p2 on right with D PNG
+            if (loserImg && p2PNGPath) {
+                loserImg.src = p2PNGPath;
                 loserImg.style.display = 'block';
                 loserImg.classList.add('slide-in', 'selected');
                 loserImg.onload = () => {
@@ -175,7 +193,17 @@ export class UIManager {
                 };
             }
             
-            // Update name displays - both use loser styling
+            // Show player labels under the text (for draw, both are losers so labels show but no winner/loser text)
+            if (player1Label) {
+                player1Label.textContent = 'PLAYER 1';
+                player1Label.classList.add('visible');
+            }
+            if (player2Label) {
+                player2Label.textContent = 'PLAYER 2';
+                player2Label.classList.add('visible');
+            }
+            
+            // Update name displays - just character name (no player label)
             if (winnerNameDisplay) {
                 winnerNameDisplay.textContent = p1Name;
                 winnerNameDisplay.classList.add('loaded', 'pop-visible');
@@ -186,18 +214,56 @@ export class UIManager {
                 loserNameDisplay.classList.add('loaded', 'pop-visible');
             }
         } else {
-            // Normal win case: winner and loser
-            // Hide DRAW text, show winner/loser text
+            // Normal win case: show winner/loser text and appropriate PNGs
+            // Hide DRAW text
             if (drawText) drawText.classList.remove('visible');
-            if (winnerText) winnerText.classList.add('visible');
-            if (loserText) loserText.classList.add('visible');
             
-            // Load and show winner V PNG
-            if (winnerImg && winnerVPath) {
-                winnerImg.src = winnerVPath;
+            // Show winner/loser text
+            // When p1 wins: "Winner" (golden, big) on left, "Loser" (gray, small) on right
+            // When p2 wins: "Loser" (gray, small) on left, "Winner" (golden, big) on right
+            // Since CSS positions are fixed, we'll swap the text content and use inline styles for positioning when p2 wins
+            if (p1Won) {
+                // Normal case: winner on left, loser on right
+                if (winnerText) {
+                    winnerText.textContent = 'Winner';
+                    winnerText.className = 'winner-text visible';
+                    winnerText.style.left = '';
+                    winnerText.style.right = '';
+                }
+                if (loserText) {
+                    loserText.textContent = 'Loser';
+                    loserText.className = 'loser-text visible';
+                    loserText.style.left = '';
+                    loserText.style.right = '';
+                }
+            } else if (p2Won) {
+                // Swapped case: loser on left, winner on right
+                // Swap content and use inline styles to override CSS positioning
+                if (winnerText) {
+                    winnerText.textContent = 'Loser';
+                    winnerText.className = 'loser-text visible'; // Gray, small styling
+                    winnerText.style.left = '43px'; // Override to stay on left
+                    winnerText.style.right = '';
+                }
+                if (loserText) {
+                    loserText.textContent = 'Winner';
+                    loserText.className = 'winner-text visible'; // Golden, big styling
+                    loserText.style.right = '43px'; // Override to stay on right
+                    loserText.style.left = '';
+                }
+            }
+            
+            // Show p1 on left with appropriate PNG (V if p1 won, D if p1 lost)
+            if (winnerImg && p1PNGPath) {
+                winnerImg.src = p1PNGPath;
                 winnerImg.style.display = 'block';
                 winnerImg.classList.remove('draw-loser'); // Remove draw-loser class for normal win
-                winnerImg.classList.add('slide-in', 'selected');
+                if (p1Won) {
+                    winnerImg.classList.remove('draw-loser');
+                    winnerImg.classList.add('slide-in', 'selected');
+                } else {
+                    winnerImg.classList.add('slide-in', 'selected', 'draw-loser');
+                }
                 winnerImg.onload = () => {
                     winnerImg.style.opacity = '1';
                     winnerImg.style.visibility = 'visible';
@@ -207,11 +273,16 @@ export class UIManager {
                 };
             }
             
-            // Load and show loser D PNG
-            if (loserImg && loserDPath) {
-                loserImg.src = loserDPath;
+            // Show p2 on right with appropriate PNG (V if p2 won, D if p2 lost)
+            if (loserImg && p2PNGPath) {
+                loserImg.src = p2PNGPath;
                 loserImg.style.display = 'block';
-                loserImg.classList.add('slide-in', 'selected');
+                if (p2Won) {
+                    loserImg.classList.remove('draw-loser');
+                    loserImg.classList.add('slide-in', 'selected');
+                } else {
+                    loserImg.classList.add('slide-in', 'selected');
+                }
                 loserImg.onload = () => {
                     loserImg.style.opacity = '1';
                     loserImg.style.visibility = 'visible';
@@ -221,14 +292,24 @@ export class UIManager {
                 };
             }
             
-            // Update name displays
+            // Show player labels under the winner/loser text
+            if (player1Label) {
+                player1Label.textContent = 'PLAYER 1';
+                player1Label.classList.add('visible');
+            }
+            if (player2Label) {
+                player2Label.textContent = 'PLAYER 2';
+                player2Label.classList.add('visible');
+            }
+            
+            // Update name displays - just character name (no player label)
             if (winnerNameDisplay) {
-                winnerNameDisplay.textContent = winnerName;
+                winnerNameDisplay.textContent = p1Name;
                 winnerNameDisplay.classList.add('loaded', 'pop-visible');
             }
             
             if (loserNameDisplay) {
-                loserNameDisplay.textContent = loserName;
+                loserNameDisplay.textContent = p2Name;
                 loserNameDisplay.classList.add('loaded', 'pop-visible');
             }
         }

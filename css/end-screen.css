@@ -248,6 +248,41 @@
     visibility: visible;
 }
 
+/* Player Label - Under Winner/Loser Text */
+.player-label {
+    position: fixed;
+    font-family: 'Arial Black', 'Franklin Gothic Bold', 'Impact', sans-serif;
+    font-size: 1.8em;
+    font-weight: 900;
+    color: #ffffff;
+    text-transform: uppercase;
+    letter-spacing: 4px;
+    text-shadow: 
+        2px 2px 0px #000,
+        3px 3px 0px #000,
+        4px 4px 0px #000,
+        5px 5px 5px rgba(0, 0, 0, 0.8);
+    z-index: 15;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease;
+}
+
+.player-label.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.player-label-left {
+    top: 120px; /* Position under winner-text (top: 34px, font-size: 3.5em ≈ 56px, plus spacing) */
+    left: 43px;
+}
+
+.player-label-right {
+    top: 110px; /* Position under loser-text (top: 34px, font-size: 2.5em ≈ 40px, plus spacing) */
+    right: 43px;
+}
+
 /* Draw Text - Big, centered */
 .draw-text {
     position: fixed;
@@ -463,6 +498,14 @@
     .loser-text {
         font-size: 2.2em;
     }
+    
+    .player-label-left {
+        top: 110px;
+    }
+    
+    .player-label-right {
+        top: 100px;
+    }
 }
 
 @media (max-width: 850px) {
@@ -479,6 +522,18 @@
     #end-screen .character-name-display {
         font-size: 2.975em;
         letter-spacing: 2px;
+    }
+    
+    .player-label {
+        font-size: 1.5em;
+    }
+    
+    .player-label-left {
+        top: 95px;
+    }
+    
+    .player-label-right {
+        top: 85px;
     }
 }
 
@@ -497,6 +552,21 @@
     
     #end-screen .character-name-display {
         font-size: 2.5em;
+    }
+    
+    .player-label {
+        font-size: 1.2em;
+        letter-spacing: 2px;
+    }
+    
+    .player-label-left {
+        top: 70px;
+        left: 30px;
+    }
+    
+    .player-label-right {
+        top: 65px;
+        right: 30px;
     }
     
     .draw-text {

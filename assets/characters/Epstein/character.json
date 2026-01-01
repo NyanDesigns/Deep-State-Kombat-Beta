@@ -43,8 +43,8 @@
     }
   },
   "hitboxes": {
-    "head": 0.38,
-    "torso": 0.55,
+    "head": 0.34,
+    "torso": 0.49,
     "attackHands": [0.22, 0.19, 0.22, 0.19],
     "attackLegs": [0.25, 0.21, 0.25, 0.21]
   },

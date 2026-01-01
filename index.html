@@ -13,6 +13,7 @@
     <link rel="stylesheet" href="css/debug.css">
     <link rel="stylesheet" href="css/character-select.css">
     <link rel="stylesheet" href="css/end-screen.css">
+    <link rel="stylesheet" href="css/loading-screen.css">
 
     <script type="importmap">
         {
@@ -243,6 +244,79 @@
         <div id="debug-panel"></div>
     </div>
 
+    <!-- Loading Screen -->
+    <div id="loading-screen" style="display: none;">
+        <div class="loading-screen-title">DEEP STATE COMBAT</div>
+        
+        <div class="loading-screen-tutorial">
+            <!-- Movement Controls -->
+            <div class="tutorial-section">
+                <div class="tutorial-section-title">Movement</div>
+                <div class="tutorial-controls">
+                    <div class="tutorial-control-item">
+                        <span class="tutorial-key">W</span>
+                        <span class="tutorial-description">Jump</span>
+                    </div>
+                    <div class="tutorial-control-item">
+                        <span class="tutorial-key">A</span>
+                        <span class="tutorial-description">Move Back</span>
+                    </div>
+                    <div class="tutorial-control-item">
+                        <span class="tutorial-key">S</span>
+                        <span class="tutorial-description">Crouch</span>
+                    </div>
+                    <div class="tutorial-control-item">
+                        <span class="tutorial-key">D</span>
+                        <span class="tutorial-description">Move Forward</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Attack Controls -->
+            <div class="tutorial-section">
+                <div class="tutorial-section-title">Attacks</div>
+                <div class="tutorial-controls">
+                    <div class="tutorial-control-item">
+                        <span class="tutorial-key">↑</span>
+                        <span class="tutorial-description">Right Hand</span>
+                    </div>
+                    <div class="tutorial-control-item">
+                        <span class="tutorial-key">←</span>
+                        <span class="tutorial-description">Left Hand</span>
+                    </div>
+                    <div class="tutorial-control-item">
+                        <span class="tutorial-key">→</span>
+                        <span class="tutorial-description">Right Leg</span>
+                    </div>
+                    <div class="tutorial-control-item">
+                        <span class="tutorial-key">↓</span>
+                        <span class="tutorial-description">Left Leg</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Navigation Controls -->
+            <div class="tutorial-section">
+                <div class="tutorial-section-title">Navigation</div>
+                <div class="tutorial-controls">
+                    <div class="tutorial-control-item">
+                        <span class="tutorial-key">ENTER</span>
+                        <span class="tutorial-description">Select / Confirm</span>
+                    </div>
+                    <div class="tutorial-control-item">
+                        <span class="tutorial-key">ESC</span>
+                        <span class="tutorial-description">Back / Pause</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Loading Bar -->
+        <div class="loading-bar-container">
+            <div class="loading-bar-fill"></div>
+        </div>
+    </div>
+
     <!-- End Screen -->
     <div id="end-screen" style="display: none;">
         <!-- Full-screen background character previews (PNG ONLY) -->
@@ -266,9 +340,15 @@
 
         <!-- Winner Text (Top Left) -->
         <div id="winner-text" class="winner-text">Winner</div>
+        
+        <!-- Player 1 Label (Under Winner Text) -->
+        <div id="player1-label" class="player-label player-label-left"></div>
 
         <!-- Loser Text (Top Right) -->
         <div id="loser-text" class="loser-text">Loser</div>
+        
+        <!-- Player 2 Label (Under Loser Text) -->
+        <div id="player2-label" class="player-label player-label-right"></div>
 
         <!-- Draw Text (Center) -->
         <div id="draw-text" class="draw-text">DRAW</div>

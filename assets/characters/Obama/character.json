@@ -13,14 +13,14 @@
   },
   "combat": {
     "light": {
-      "dmg": 7,
-      "cost": 14,
+      "dmg": 20,
+      "cost": 24,
       "range": 2.2,
       "window": [0.2, 0.5]
     },
     "heavy": {
-      "dmg": 16,
-      "cost": 28,
+      "dmg": 40,
+      "cost": 43,
       "range": 2.7,
       "window": [0.4, 0.8]
     }

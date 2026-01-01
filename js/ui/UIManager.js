@@ -221,35 +221,37 @@ export class UIManager {
             // Show winner/loser text
             // When p1 wins: "Winner" (golden, big) on left, "Loser" (gray, small) on right
             // When p2 wins: "Loser" (gray, small) on left, "Winner" (golden, big) on right
-            // Since CSS positions are fixed, we'll swap the text content and use inline styles for positioning when p2 wins
             if (p1Won) {
                 // Normal case: winner on left, loser on right
                 if (winnerText) {
                     winnerText.textContent = 'Winner';
                     winnerText.className = 'winner-text visible';
-                    winnerText.style.left = '';
-                    winnerText.style.right = '';
+                    // Clear any inline style overrides to use default CSS positioning
+                    winnerText.style.removeProperty('left');
+                    winnerText.style.removeProperty('right');
                 }
                 if (loserText) {
                     loserText.textContent = 'Loser';
                     loserText.className = 'loser-text visible';
-                    loserText.style.left = '';
-                    loserText.style.right = '';
+                    // Clear any inline style overrides to use default CSS positioning
+                    loserText.style.removeProperty('left');
+                    loserText.style.removeProperty('right');
                 }
             } else if (p2Won) {
-                // Swapped case: loser on left, winner on right
-                // Swap content and use inline styles to override CSS positioning
+                // Swapped case: loser on left (winnerText element), winner on right (loserText element)
                 if (winnerText) {
                     winnerText.textContent = 'Loser';
                     winnerText.className = 'loser-text visible'; // Gray, small styling
-                    winnerText.style.left = '43px'; // Override to stay on left
-                    winnerText.style.right = '';
+                    // Override CSS positioning: loser-text normally positions on right, but we want it on left
+                    winnerText.style.setProperty('left', '43px', 'important');
+                    winnerText.style.setProperty('right', '', 'important');
                 }
                 if (loserText) {
                     loserText.textContent = 'Winner';
                     loserText.className = 'winner-text visible'; // Golden, big styling
-                    loserText.style.right = '43px'; // Override to stay on right (matches default CSS)
-                    loserText.style.left = '';
+                    // Override CSS positioning: winner-text normally positions on left, but we want it on right
+                    loserText.style.setProperty('left', '', 'important');
+                    loserText.style.setProperty('right', '43px', 'important');
                 }
             }
             

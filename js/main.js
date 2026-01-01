@@ -272,9 +272,9 @@ async function initializeSystems() {
     // Setup all callbacks
     setupCallbacks();
 
-    // Show setup screen and set game state
+    // Set game state to SETUP
+    // Don't show setup screen here - it will be shown by tutorial completion or loading sequence
     gameState.setState('SETUP');
-    setupScreen.show();
 }
 
 /**
@@ -521,6 +521,12 @@ async function init() {
             if (needsTutorial) {
                 // Show tutorial loading screen and load initial models
                 await showTutorialScreen();
+                // Setup screen is shown at the end of showTutorialScreen()
+            } else {
+                // No tutorial needed - show setup screen now so loading sequence can work with it
+                if (setupScreen) {
+                    setupScreen.show();
+                }
             }
             
             // Determine loading strategy based on app state

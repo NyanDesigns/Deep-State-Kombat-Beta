@@ -356,8 +356,10 @@ async function showTutorialScreen() {
         loadingScreen.updateProgress(100);
     }
 
-    // Small delay to show 100% before hiding
-    await new Promise(resolve => setTimeout(resolve, 300));
+    // Wait for user to press Enter before proceeding
+    if (loadingScreen) {
+        await loadingScreen.waitForEnter();
+    }
 
     // Mark tutorial as complete
     storageManager.markTutorialComplete();

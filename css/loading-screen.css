@@ -175,6 +175,45 @@
     overflow: hidden;
 }
 
+/* Loading Bar Text - Percentage or "Press Enter to Play" */
+.loading-bar-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-family: 'Courier New', monospace;
+    font-size: 1.2em;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.95);
+    text-shadow: 
+        2px 2px 0px rgba(0, 0, 0, 0.8),
+        0 0 10px rgba(255, 165, 0, 0.6);
+    z-index: 10;
+    pointer-events: none;
+    user-select: none;
+    transition: all 0.3s ease;
+}
+
+.loading-bar-text.ready {
+    color: rgba(255, 165, 0, 1);
+    text-shadow: 
+        2px 2px 0px rgba(0, 0, 0, 0.8),
+        0 0 15px rgba(255, 165, 0, 0.8),
+        0 0 25px rgba(255, 140, 0, 0.6);
+    animation: readyPulse 1.5s ease-in-out infinite;
+}
+
+@keyframes readyPulse {
+    0%, 100% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    50% {
+        opacity: 0.8;
+        transform: translate(-50%, -50%) scale(1.05);
+    }
+}
+
 /* Animated shine effect on loading bar */
 .loading-bar-fill::after {
     content: '';
@@ -224,6 +263,10 @@
         padding: 6px 12px;
         font-size: 0.85em;
         min-width: 40px;
+    }
+
+    .loading-bar-text {
+        font-size: 1em;
     }
 }
 

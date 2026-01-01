@@ -114,14 +114,24 @@ export class UIManager {
         const p1Id_str = p1Config?.id || '';
         const p2Id_str = p2Config?.id || '';
         
-        // Determine PNG paths based on who won
-        const p1PNGPath = isDraw ? (p1Id_str ? getCharacterImagePath(p1Id_str, 'D') : '') : 
-                           (p1Won ? (p1Id_str ? getCharacterImagePath(p1Id_str, 'V') : '') : 
-                            (p1Id_str ? getCharacterImagePath(p1Id_str, 'D') : ''));
+        // Determine PNG paths - winner always on left, loser always on right
+        let winnerPNGPath = '';
+        let loserPNGPath = '';
         
-        const p2PNGPath = isDraw ? (p2Id_str ? getCharacterImagePath(p2Id_str, 'D') : '') : 
-                           (p2Won ? (p2Id_str ? getCharacterImagePath(p2Id_str, 'V') : '') : 
-                            (p2Id_str ? getCharacterImagePath(p2Id_str, 'D') : ''));
+        if (isDraw) {
+            // Draw: both are losers, p1 on left, p2 on right
+            winnerPNGPath = p1Id_str ? getCharacterImagePath(p1Id_str, 'D') : '';
+            loserPNGPath = p2Id_str ? getCharacterImagePath(p2Id_str, 'D') : '';
+        } else {
+            // Winner PNG always goes on left (winnerImg), loser PNG always goes on right (loserImg)
+            if (p1Won) {
+                winnerPNGPath = p1Id_str ? getCharacterImagePath(p1Id_str, 'V') : '';
+                loserPNGPath = p2Id_str ? getCharacterImagePath(p2Id_str, 'D') : '';
+            } else if (p2Won) {
+                winnerPNGPath = p2Id_str ? getCharacterImagePath(p2Id_str, 'V') : '';
+                loserPNGPath = p1Id_str ? getCharacterImagePath(p1Id_str, 'D') : '';
+            }
+        }
         
         // Get end screen elements
         const endScreen = document.getElementById('end-screen');
@@ -165,11 +175,13 @@ export class UIManager {
                 player2Label.classList.remove('visible');
             }
             
-            // Show p1 on left with D PNG
-            if (winnerImg && p1PNGPath) {
-                winnerImg.src = p1PNGPath;
+            // Draw case: both are losers, p1 on left (winnerImg), p2 on right (loserImg)
+            if (winnerImg && winnerPNGPath) {
+                winnerImg.src = winnerPNGPath;
                 winnerImg.style.display = 'block';
-                winnerImg.classList.add('slide-in', 'selected', 'draw-loser');
+                // Clear any previous state classes
+                winnerImg.classList.remove('draw-loser', 'winner-state');
+                winnerImg.classList.add('slide-in', 'selected', 'draw-loser'); // Grayscale styling for draw
                 winnerImg.onload = () => {
                     winnerImg.style.opacity = '1';
                     winnerImg.style.visibility = 'visible';
@@ -179,11 +191,12 @@ export class UIManager {
                 };
             }
             
-            // Show p2 on right with D PNG
-            if (loserImg && p2PNGPath) {
-                loserImg.src = p2PNGPath;
+            if (loserImg && loserPNGPath) {
+                loserImg.src = loserPNGPath;
                 loserImg.style.display = 'block';
-                loserImg.classList.add('slide-in', 'selected');
+                // Clear any previous state classes
+                loserImg.classList.remove('draw-loser', 'winner-state');
+                loserImg.classList.add('slide-in', 'selected'); // Default grayscale styling
                 loserImg.onload = () => {
                     loserImg.style.opacity = '1';
                     loserImg.style.visibility = 'visible';
@@ -225,48 +238,32 @@ export class UIManager {
                 // Normal case: winner on left, loser on right
                 if (winnerText) {
                     winnerText.textContent = 'Winner';
-                    winnerText.className = 'winner-text visible';
-                    // Clear any inline style overrides to use default CSS positioning
-                    winnerText.style.removeProperty('left');
-                    winnerText.style.removeProperty('right');
+                    winnerText.className = 'winner-text visible'; // Default positioning (left)
                 }
                 if (loserText) {
                     loserText.textContent = 'Loser';
-                    loserText.className = 'loser-text visible';
-                    // Clear any inline style overrides to use default CSS positioning
-                    loserText.style.removeProperty('left');
-                    loserText.style.removeProperty('right');
+                    loserText.className = 'loser-text visible'; // Default positioning (right)
                 }
             } else if (p2Won) {
                 // Swapped case: loser on left (winnerText element), winner on right (loserText element)
                 if (winnerText) {
                     winnerText.textContent = 'Loser';
-                    winnerText.className = 'loser-text visible'; // Gray, small styling
-                    // Override CSS positioning: loser-text normally positions on right, but we want it on left
-                    winnerText.style.setProperty('left', '43px', 'important');
-                    winnerText.style.setProperty('right', '', 'important');
+                    winnerText.className = 'loser-text loser-left visible'; // Gray, small styling, positioned on left
                 }
                 if (loserText) {
                     loserText.textContent = 'Winner';
-                    loserText.className = 'winner-text visible'; // Golden, big styling
-                    // Override CSS positioning: winner-text normally positions on left, but we want it on right
-                    loserText.style.setProperty('left', '', 'important');
-                    loserText.style.setProperty('right', '43px', 'important');
+                    loserText.className = 'winner-text winner-right visible'; // Golden, big styling, positioned on right
                 }
             }
             
-            // Show p1 on left with appropriate PNG (V if p1 won, D if p1 lost)
-            if (winnerImg && p1PNGPath) {
-                winnerImg.src = p1PNGPath;
+            // Winner always on left (winnerImg), Loser always on right (loserImg)
+            if (winnerImg && winnerPNGPath) {
+                winnerImg.src = winnerPNGPath;
                 winnerImg.style.display = 'block';
                 // Clear any previous state classes
                 winnerImg.classList.remove('draw-loser', 'winner-state');
                 winnerImg.classList.add('slide-in', 'selected');
-                if (!p1Won) {
-                    // P1 lost - add draw-loser class for grayscale styling
-                    winnerImg.classList.add('draw-loser');
-                }
-                // If p1 won, default .p1-png.selected styling (golden glow, no grayscale) will apply
+                // Winner always gets winner styling (golden glow, no grayscale) - default .p1-png.selected
                 winnerImg.onload = () => {
                     winnerImg.style.opacity = '1';
                     winnerImg.style.visibility = 'visible';
@@ -276,18 +273,13 @@ export class UIManager {
                 };
             }
             
-            // Show p2 on right with appropriate PNG (V if p2 won, D if p2 lost)
-            if (loserImg && p2PNGPath) {
-                loserImg.src = p2PNGPath;
+            if (loserImg && loserPNGPath) {
+                loserImg.src = loserPNGPath;
                 loserImg.style.display = 'block';
                 // Clear any previous state classes
                 loserImg.classList.remove('draw-loser', 'winner-state');
                 loserImg.classList.add('slide-in', 'selected');
-                if (p2Won) {
-                    // P2 won - add winner-state class to remove grayscale (golden glow)
-                    loserImg.classList.add('winner-state');
-                }
-                // If p2 lost, default .p2-png.selected styling (grayscale) will apply
+                // Loser always gets loser styling (grayscale) - default .p2-png.selected
                 loserImg.onload = () => {
                     loserImg.style.opacity = '1';
                     loserImg.style.visibility = 'visible';

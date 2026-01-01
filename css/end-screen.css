@@ -259,6 +259,17 @@
     visibility: visible;
 }
 
+/* Swapped positioning classes for when p2 wins */
+.winner-text.winner-right {
+    left: auto !important;
+    right: 43px !important;
+}
+
+.loser-text.loser-left {
+    right: auto !important;
+    left: 43px !important;
+}
+
 /* Player Label - Under Winner/Loser Text */
 .player-label {
     position: fixed;

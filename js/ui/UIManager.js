@@ -76,20 +76,18 @@ export class UIManager {
         const isDraw = winnerId === null || winnerId === undefined;
         
         // Identify which fighter is p1 and which is p2 (Player 1 always left, Player 2 always right)
+        // Use winnerFighter and loserFighter directly - identify p1 and p2 by their id
         let p1Fighter = null;
         let p2Fighter = null;
         
-        // Determine p1 and p2 from fighter id
-        if (winnerFighter && winnerFighter.id === 'p1') {
-            p1Fighter = winnerFighter;
-        } else if (loserFighter && loserFighter.id === 'p1') {
-            p1Fighter = loserFighter;
+        // Find p1 and p2 from the fighters passed in
+        if (winnerFighter) {
+            if (winnerFighter.id === 'p1') p1Fighter = winnerFighter;
+            if (winnerFighter.id === 'p2') p2Fighter = winnerFighter;
         }
-        
-        if (winnerFighter && winnerFighter.id === 'p2') {
-            p2Fighter = winnerFighter;
-        } else if (loserFighter && loserFighter.id === 'p2') {
-            p2Fighter = loserFighter;
+        if (loserFighter) {
+            if (loserFighter.id === 'p1') p1Fighter = loserFighter;
+            if (loserFighter.id === 'p2') p2Fighter = loserFighter;
         }
         
         // Get character configurations and names
@@ -117,21 +115,40 @@ export class UIManager {
         // Determine PNG paths - winner always on left, loser always on right
         let winnerPNGPath = '';
         let loserPNGPath = '';
+        let winnerCharacterId = '';
+        let loserCharacterId = '';
         
         if (isDraw) {
             // Draw: both are losers, p1 on left, p2 on right
+            winnerCharacterId = p1Id_str;
+            loserCharacterId = p2Id_str;
             winnerPNGPath = p1Id_str ? getCharacterImagePath(p1Id_str, 'D') : '';
             loserPNGPath = p2Id_str ? getCharacterImagePath(p2Id_str, 'D') : '';
         } else {
             // Winner PNG always goes on left (winnerImg), loser PNG always goes on right (loserImg)
             if (p1Won) {
+                winnerCharacterId = p1Id_str;
+                loserCharacterId = p2Id_str;
                 winnerPNGPath = p1Id_str ? getCharacterImagePath(p1Id_str, 'V') : '';
                 loserPNGPath = p2Id_str ? getCharacterImagePath(p2Id_str, 'D') : '';
             } else if (p2Won) {
+                winnerCharacterId = p2Id_str;
+                loserCharacterId = p1Id_str;
                 winnerPNGPath = p2Id_str ? getCharacterImagePath(p2Id_str, 'V') : '';
                 loserPNGPath = p1Id_str ? getCharacterImagePath(p1Id_str, 'D') : '';
             }
         }
+        
+        // Debug logging
+        console.log('=== END SCREEN DEBUG ===');
+        console.log('winnerId:', winnerId, 'p1Won:', p1Won, 'p2Won:', p2Won);
+        console.log('p1Fighter id:', p1Fighter?.id, 'p2Fighter id:', p2Fighter?.id);
+        console.log('p1Config id:', p1Config?.id, 'p2Config id:', p2Config?.id);
+        console.log('p1Id_str:', p1Id_str, 'p2Id_str:', p2Id_str);
+        console.log('Winner character:', winnerCharacterId, 'Loser character:', loserCharacterId);
+        console.log('Winner PNG path:', winnerPNGPath);
+        console.log('Loser PNG path:', loserPNGPath);
+        console.log('========================');
         
         // Get end screen elements
         const endScreen = document.getElementById('end-screen');
@@ -257,34 +274,55 @@ export class UIManager {
             }
             
             // Winner always on left (winnerImg), Loser always on right (loserImg)
+            // Ensure winnerImg has p1-png class (left position, winner styling) and loserImg has p2-png class (right position, loser styling)
             if (winnerImg && winnerPNGPath) {
-                winnerImg.src = winnerPNGPath;
+                console.log('Loading winner PNG into winnerImg (left):', winnerPNGPath);
+                // Force reload by adding timestamp or clearing first
+                winnerImg.style.display = 'none';
+                winnerImg.style.opacity = '0';
+                winnerImg.style.visibility = 'hidden';
+                // Ensure correct classes: p1-png for left positioning and winner styling
+                winnerImg.className = 'background-png p1-png';
+                // Set src and then add animation classes
+                winnerImg.src = winnerPNGPath + '?t=' + Date.now(); // Force reload with timestamp
                 winnerImg.style.display = 'block';
-                // Clear any previous state classes
-                winnerImg.classList.remove('draw-loser', 'winner-state');
                 winnerImg.classList.add('slide-in', 'selected');
                 // Winner always gets winner styling (golden glow, no grayscale) - default .p1-png.selected
                 winnerImg.onload = () => {
+                    console.log('Winner PNG loaded - Expected:', winnerPNGPath);
+                    console.log('Winner PNG loaded - Actual src:', winnerImg.src);
+                    console.log('Winner PNG classes:', winnerImg.className);
                     winnerImg.style.opacity = '1';
                     winnerImg.style.visibility = 'visible';
                 };
                 winnerImg.onerror = () => {
+                    console.error('Failed to load winner PNG:', winnerPNGPath);
                     winnerImg.style.display = 'none';
                 };
             }
             
             if (loserImg && loserPNGPath) {
-                loserImg.src = loserPNGPath;
+                console.log('Loading loser PNG into loserImg (right):', loserPNGPath);
+                // Force reload by adding timestamp or clearing first
+                loserImg.style.display = 'none';
+                loserImg.style.opacity = '0';
+                loserImg.style.visibility = 'hidden';
+                // Ensure correct classes: p2-png for right positioning and loser styling
+                loserImg.className = 'background-png p2-png';
+                // Set src and then add animation classes
+                loserImg.src = loserPNGPath + '?t=' + Date.now(); // Force reload with timestamp
                 loserImg.style.display = 'block';
-                // Clear any previous state classes
-                loserImg.classList.remove('draw-loser', 'winner-state');
                 loserImg.classList.add('slide-in', 'selected');
                 // Loser always gets loser styling (grayscale) - default .p2-png.selected
                 loserImg.onload = () => {
+                    console.log('Loser PNG loaded - Expected:', loserPNGPath);
+                    console.log('Loser PNG loaded - Actual src:', loserImg.src);
+                    console.log('Loser PNG classes:', loserImg.className);
                     loserImg.style.opacity = '1';
                     loserImg.style.visibility = 'visible';
                 };
                 loserImg.onerror = () => {
+                    console.error('Failed to load loser PNG:', loserPNGPath);
                     loserImg.style.display = 'none';
                 };
             }

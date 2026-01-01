@@ -369,6 +369,15 @@ async function showTutorialScreen() {
 
     // Wait for fade-out animation
     await new Promise(resolve => setTimeout(resolve, 500));
+    
+    // Ensure setup screen is visible after tutorial (it was hidden during tutorial)
+    // Set game state to SETUP and show the screen
+    if (gameState) {
+        gameState.setState('SETUP');
+    }
+    if (setupScreen) {
+        setupScreen.show();
+    }
 }
 
 /**

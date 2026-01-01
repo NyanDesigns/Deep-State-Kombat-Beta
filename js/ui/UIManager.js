@@ -248,7 +248,7 @@ export class UIManager {
                 if (loserText) {
                     loserText.textContent = 'Winner';
                     loserText.className = 'winner-text visible'; // Golden, big styling
-                    loserText.style.right = '43px'; // Override to stay on right
+                    loserText.style.right = '43px'; // Override to stay on right (matches default CSS)
                     loserText.style.left = '';
                 }
             }
@@ -257,13 +257,14 @@ export class UIManager {
             if (winnerImg && p1PNGPath) {
                 winnerImg.src = p1PNGPath;
                 winnerImg.style.display = 'block';
-                winnerImg.classList.remove('draw-loser'); // Remove draw-loser class for normal win
-                if (p1Won) {
-                    winnerImg.classList.remove('draw-loser');
-                    winnerImg.classList.add('slide-in', 'selected');
-                } else {
-                    winnerImg.classList.add('slide-in', 'selected', 'draw-loser');
+                // Clear any previous state classes
+                winnerImg.classList.remove('draw-loser', 'winner-state');
+                winnerImg.classList.add('slide-in', 'selected');
+                if (!p1Won) {
+                    // P1 lost - add draw-loser class for grayscale styling
+                    winnerImg.classList.add('draw-loser');
                 }
+                // If p1 won, default .p1-png.selected styling (golden glow, no grayscale) will apply
                 winnerImg.onload = () => {
                     winnerImg.style.opacity = '1';
                     winnerImg.style.visibility = 'visible';
@@ -277,12 +278,14 @@ export class UIManager {
             if (loserImg && p2PNGPath) {
                 loserImg.src = p2PNGPath;
                 loserImg.style.display = 'block';
+                // Clear any previous state classes
+                loserImg.classList.remove('draw-loser', 'winner-state');
+                loserImg.classList.add('slide-in', 'selected');
                 if (p2Won) {
-                    loserImg.classList.remove('draw-loser');
-                    loserImg.classList.add('slide-in', 'selected');
-                } else {
-                    loserImg.classList.add('slide-in', 'selected');
+                    // P2 won - add winner-state class to remove grayscale (golden glow)
+                    loserImg.classList.add('winner-state');
                 }
+                // If p2 lost, default .p2-png.selected styling (grayscale) will apply
                 loserImg.onload = () => {
                     loserImg.style.opacity = '1';
                     loserImg.style.visibility = 'visible';

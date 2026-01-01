@@ -112,7 +112,7 @@
             drop-shadow(0 0 80px rgba(255, 100, 0, 0.3));
 }
 
-/* Loser selected state - grayscale with dimmed glow */
+/* Loser selected state - grayscale with dimmed glow (default for p2) */
 #end-screen .p2-png.selected {
     animation: none !important;
     right: -30% !important;
@@ -126,6 +126,17 @@
             drop-shadow(-10px 10px 6px rgba(0, 0, 0, 0.8))
             drop-shadow(0 0 40px rgba(128, 128, 128, 0.5))
             drop-shadow(0 0 80px rgba(100, 100, 100, 0.3));
+}
+
+/* Winner state for p2 (right side) - no grayscale, golden glow */
+#end-screen .p2-png.selected.winner-state {
+    filter: drop-shadow(-6px 6px 0px #000)
+            drop-shadow(-7px 7px 0px #000)
+            drop-shadow(-8px 8px 0px #000)
+            drop-shadow(-9px 9px 0px #000)
+            drop-shadow(-10px 10px 6px rgba(0, 0, 0, 0.8))
+            drop-shadow(0 0 40px rgba(255, 140, 0, 0.5))
+            drop-shadow(0 0 80px rgba(255, 100, 0, 0.3)) !important;
 }
 
 /* For draw case, left side PNG should also be styled as loser */

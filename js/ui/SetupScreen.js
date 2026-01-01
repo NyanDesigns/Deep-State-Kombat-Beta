@@ -32,6 +32,8 @@ export class SetupScreen {
         const screen = document.getElementById('setup-screen');
         if (screen) {
             screen.style.display = 'flex';
+            screen.style.visibility = 'visible';
+            screen.style.opacity = '1';
         }
     }
 

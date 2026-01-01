@@ -156,9 +156,9 @@ export class UIManager {
             if (player1Label) player1Label.classList.remove('visible');
             if (player2Label) player2Label.classList.remove('visible');
             
-            // Both images get loser styling
-            this.loadCharacterImage(winnerImg, leftPNGPath, 'p1-png', true);
-            this.loadCharacterImage(loserImg, rightPNGPath, 'p2-png', false);
+            // Both images get loser styling and loser positioning (both are losers)
+            this.loadCharacterImage(winnerImg, leftPNGPath, 'p1-png', true, false, false);
+            this.loadCharacterImage(loserImg, rightPNGPath, 'p2-png', false, false, false);
             
             // Show player labels
             if (player1Label) {
@@ -194,15 +194,15 @@ export class UIManager {
                 }
             }
             
-            // Load images - swap when p2 wins to match text positioning
+            // Load images - determine winner/loser state for positioning
             if (winnerId === 'p1') {
-                // P1 wins: winner left (golden), loser right (grayscale)
-                this.loadCharacterImage(winnerImg, leftPNGPath, 'p1-png', false);
-                this.loadCharacterImage(loserImg, rightPNGPath, 'p2-png', false);
+                // P1 wins: winner left (golden, 65%), loser right (grayscale, 50%)
+                this.loadCharacterImage(winnerImg, leftPNGPath, 'p1-png', false, false, true);
+                this.loadCharacterImage(loserImg, rightPNGPath, 'p2-png', false, false, false);
             } else {
-                // P2 wins: loser left (grayscale), winner right (golden)
-                this.loadCharacterImage(winnerImg, rightPNGPath, 'p1-png', true);
-                this.loadCharacterImage(loserImg, leftPNGPath, 'p2-png', false, true);
+                // P2 wins: loser left (grayscale, 50%), winner right (golden, 65%)
+                this.loadCharacterImage(winnerImg, rightPNGPath, 'p1-png', true, false, false);
+                this.loadCharacterImage(loserImg, leftPNGPath, 'p2-png', false, true, true);
             }
             
             // Show player labels
@@ -253,7 +253,7 @@ export class UIManager {
         });
     }
 
-    loadCharacterImage(imgElement, imagePath, baseClass, isDrawLoser, isWinnerOnRight = false) {
+    loadCharacterImage(imgElement, imagePath, baseClass, isDrawLoser, isWinnerOnRight = false, isWinner = false) {
         if (!imgElement || !imagePath) return;
         
         // Reset state
@@ -266,6 +266,14 @@ export class UIManager {
         
         // Add state classes
         const classes = ['slide-in', 'selected'];
+        
+        // Add positioning class based on win/loss state
+        if (isWinner) {
+            classes.push('winner-position');
+        } else {
+            classes.push('loser-position');
+        }
+        
         if (isDrawLoser && baseClass === 'p1-png') {
             classes.push('draw-loser');
         }

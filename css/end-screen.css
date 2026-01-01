@@ -63,10 +63,19 @@
     visibility: hidden;
 }
 
+/* Dynamic positioning classes - based on win/loss state, not side */
+#end-screen .background-png.winner-position {
+    top: 65% !important; /* Winner always at 65% */
+}
+
+#end-screen .background-png.loser-position {
+    top: 40% !important; /* Loser always at 40% (moved up more) */
+}
+
 /* Winner PNG on left side - closer to center */
 #end-screen .p1-png {
     left: -100%; /* Start off-screen to the left */
-    top: 65%; /* Moved down a little */
+    /* top will be set by winner-position or loser-position class */
     transform: translateY(-50%);
     opacity: 0;
     transition: none;
@@ -75,13 +84,13 @@
 /* Loser PNG on right side, mirrored - closer to center */
 #end-screen .p2-png {
     right: -100%; /* Start off-screen to the right */
-    top: 50%; /* Moved up more */
+    /* top will be set by winner-position or loser-position class */
     transform: translateY(-50%) scaleX(-1);
     opacity: 0;
     transition: none;
 }
 
-/* Slide-in animation for Winner PNG (from left) */
+/* Slide-in animation - works for both sides based on positioning class */
 #end-screen .p1-png.slide-in {
     opacity: 1;
     visibility: visible;
@@ -89,7 +98,6 @@
                endCharacterBreathe 4s ease-in-out 1s infinite;
 }
 
-/* Slide-in animation for Loser PNG (from right) */
 #end-screen .p2-png.slide-in {
     opacity: 1;
     visibility: visible;
@@ -101,7 +109,7 @@
 #end-screen .p1-png.selected {
     animation: none !important;
     left: -30% !important;
-    top: 65% !important; /* Moved down a little */
+    /* top controlled by winner-position or loser-position class */
     transform: translateY(-45%) scale(1.15);
     filter: drop-shadow(-6px 6px 0px #000)
             drop-shadow(-7px 7px 0px #000)
@@ -116,7 +124,7 @@
 #end-screen .p2-png.selected {
     animation: none !important;
     right: -30% !important;
-    top: 50% !important; /* Moved up more */
+    /* top controlled by winner-position or loser-position class */
     transform: translateY(-45%) scaleX(-1) scale(1.15);
     filter: grayscale(100%) brightness(0.8)
             drop-shadow(-6px 6px 0px #000)
@@ -143,7 +151,7 @@
 #end-screen .p1-png.selected.draw-loser {
     animation: none !important;
     left: -30% !important;
-    top: 65% !important; /* Keep winner position for draw (they're both losers but position stays) */
+    /* top controlled by loser-position class (both are losers in draw) */
     transform: translateY(-45%) scale(1.15);
     filter: grayscale(100%) brightness(0.8)
             drop-shadow(-6px 6px 0px #000)
@@ -453,13 +461,13 @@
 
 @keyframes endCharacterBreathe {
     0%, 100% {
-        top: 65%;
+        /* top controlled by winner-position or loser-position class */
         transform: translateY(-50%) scale(1);
         filter: drop-shadow(0 0 30px rgba(255, 100, 0, 0.5))
                 drop-shadow(0 0 60px rgba(255, 69, 0, 0.3));
     }
     50% {
-        top: 65%;
+        /* top controlled by winner-position or loser-position class */
         transform: translateY(-50%) scale(1.02);
         filter: drop-shadow(0 0 40px rgba(255, 140, 0, 0.6))
                 drop-shadow(0 0 80px rgba(255, 100, 0, 0.4));
@@ -468,13 +476,13 @@
 
 @keyframes endCharacterBreatheP2 {
     0%, 100% {
-        top: 50%;
+        /* top controlled by winner-position or loser-position class */
         transform: translateY(-50%) scaleX(-1) scale(1);
         filter: drop-shadow(0 0 30px rgba(255, 100, 0, 0.5))
                 drop-shadow(0 0 60px rgba(255, 69, 0, 0.3));
     }
     50% {
-        top: 50%;
+        /* top controlled by winner-position or loser-position class */
         transform: translateY(-50%) scaleX(-1) scale(1.02);
         filter: drop-shadow(0 0 40px rgba(255, 140, 0, 0.6))
                 drop-shadow(0 0 80px rgba(255, 100, 0, 0.4));

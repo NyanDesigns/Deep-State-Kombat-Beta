@@ -112,16 +112,20 @@ export class UIManager {
         const p1Id_str = p1Config?.id || '';
         const p2Id_str = p2Config?.id || '';
         
-        // Determine PNG paths - winner always on left, loser always on right
+        // Determine PNG paths and names - winner always on left, loser always on right
         let winnerPNGPath = '';
         let loserPNGPath = '';
         let winnerCharacterId = '';
         let loserCharacterId = '';
+        let winnerName = '';
+        let loserName = '';
         
         if (isDraw) {
             // Draw: both are losers, p1 on left, p2 on right
             winnerCharacterId = p1Id_str;
             loserCharacterId = p2Id_str;
+            winnerName = p1Name;
+            loserName = p2Name;
             winnerPNGPath = p1Id_str ? getCharacterImagePath(p1Id_str, 'D') : '';
             loserPNGPath = p2Id_str ? getCharacterImagePath(p2Id_str, 'D') : '';
         } else {
@@ -129,11 +133,15 @@ export class UIManager {
             if (p1Won) {
                 winnerCharacterId = p1Id_str;
                 loserCharacterId = p2Id_str;
+                winnerName = p1Name;
+                loserName = p2Name;
                 winnerPNGPath = p1Id_str ? getCharacterImagePath(p1Id_str, 'V') : '';
                 loserPNGPath = p2Id_str ? getCharacterImagePath(p2Id_str, 'D') : '';
             } else if (p2Won) {
                 winnerCharacterId = p2Id_str;
                 loserCharacterId = p1Id_str;
+                winnerName = p2Name;
+                loserName = p1Name;
                 winnerPNGPath = p2Id_str ? getCharacterImagePath(p2Id_str, 'V') : '';
                 loserPNGPath = p1Id_str ? getCharacterImagePath(p1Id_str, 'D') : '';
             }
@@ -145,7 +153,9 @@ export class UIManager {
         console.log('p1Fighter id:', p1Fighter?.id, 'p2Fighter id:', p2Fighter?.id);
         console.log('p1Config id:', p1Config?.id, 'p2Config id:', p2Config?.id);
         console.log('p1Id_str:', p1Id_str, 'p2Id_str:', p2Id_str);
+        console.log('p1Name:', p1Name, 'p2Name:', p2Name);
         console.log('Winner character:', winnerCharacterId, 'Loser character:', loserCharacterId);
+        console.log('Winner name:', winnerName, 'Loser name:', loserName);
         console.log('Winner PNG path:', winnerPNGPath);
         console.log('Loser PNG path:', loserPNGPath);
         console.log('========================');
@@ -233,14 +243,16 @@ export class UIManager {
                 player2Label.classList.add('visible');
             }
             
-            // Update name displays - just character name (no player label)
+            // Update name displays - show winner name on left, loser name on right
             if (winnerNameDisplay) {
-                winnerNameDisplay.textContent = p1Name;
+                console.log('Setting winnerNameDisplay (left) to:', winnerName);
+                winnerNameDisplay.textContent = winnerName;
                 winnerNameDisplay.classList.add('loaded', 'pop-visible');
             }
             
             if (loserNameDisplay) {
-                loserNameDisplay.textContent = p2Name;
+                console.log('Setting loserNameDisplay (right) to:', loserName);
+                loserNameDisplay.textContent = loserName;
                 loserNameDisplay.classList.add('loaded', 'pop-visible');
             }
         } else {
@@ -337,14 +349,16 @@ export class UIManager {
                 player2Label.classList.add('visible');
             }
             
-            // Update name displays - just character name (no player label)
+            // Update name displays - show winner name on left, loser name on right
             if (winnerNameDisplay) {
-                winnerNameDisplay.textContent = p1Name;
+                console.log('Setting winnerNameDisplay (left) to:', winnerName);
+                winnerNameDisplay.textContent = winnerName;
                 winnerNameDisplay.classList.add('loaded', 'pop-visible');
             }
             
             if (loserNameDisplay) {
-                loserNameDisplay.textContent = p2Name;
+                console.log('Setting loserNameDisplay (right) to:', loserName);
+                loserNameDisplay.textContent = loserName;
                 loserNameDisplay.classList.add('loaded', 'pop-visible');
             }
         }

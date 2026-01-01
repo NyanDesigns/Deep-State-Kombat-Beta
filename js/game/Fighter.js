@@ -415,12 +415,14 @@ export class Fighter {
         const cylinder = this.collisionBoxVisualization.getObjectByName('collisionCylinder');
 
         if (cylinder) {
-            const midY = (this.collisionStart.y + this.collisionEnd.y) * 0.5;
-            cylinder.position.y = midY;
+            // Calculate midY relative to mesh position (since group will be positioned at mesh.position.y)
+            const midYRelative = (this.collisionStart.y + this.collisionEnd.y) * 0.5 - this.mesh.position.y;
+            cylinder.position.y = midYRelative;
         }
 
-        // Position the whole group at the mesh's x/z position
+        // Position the whole group to follow the character's position (x, y, z)
         this.collisionBoxVisualization.position.x = this.mesh.position.x;
+        this.collisionBoxVisualization.position.y = this.mesh.position.y;
         this.collisionBoxVisualization.position.z = this.mesh.position.z;
     }
 

@@ -68,172 +68,99 @@ export class UIManager {
     showVictory(winnerId, winnerFighter = null, loserFighter = null) {
         // Hide center overlay
         const overlay = document.getElementById('center-overlay');
-        if (overlay) {
-            overlay.innerHTML = '';
-        }
+        if (overlay) overlay.innerHTML = '';
         
-        // Check if this is a draw
         const isDraw = winnerId === null || winnerId === undefined;
         
-        // Identify which fighter is p1 and which is p2 (Player 1 always left, Player 2 always right)
-        // Use winnerFighter and loserFighter directly - identify p1 and p2 by their id
-        let p1Fighter = null;
-        let p2Fighter = null;
+        // Get p1 and p2 fighters directly
+        const p1Fighter = winnerFighter?.id === 'p1' ? winnerFighter : loserFighter?.id === 'p1' ? loserFighter : null;
+        const p2Fighter = winnerFighter?.id === 'p2' ? winnerFighter : loserFighter?.id === 'p2' ? loserFighter : null;
         
-        // Find p1 and p2 from the fighters passed in
-        if (winnerFighter) {
-            if (winnerFighter.id === 'p1') p1Fighter = winnerFighter;
-            if (winnerFighter.id === 'p2') p2Fighter = winnerFighter;
-        }
-        if (loserFighter) {
-            if (loserFighter.id === 'p1') p1Fighter = loserFighter;
-            if (loserFighter.id === 'p2') p2Fighter = loserFighter;
+        if (!p1Fighter || !p2Fighter) {
+            console.error('Missing fighter data for end screen');
+            return;
         }
         
-        // Get character configurations and names
-        let p1Config = p1Fighter?.characterConfig || null;
-        let p2Config = p2Fighter?.characterConfig || null;
+        const p1Config = p1Fighter.characterConfig;
+        const p2Config = p2Fighter.characterConfig;
         
-        let p1Name = p1Config?.name || 'PLAYER 1';
-        let p2Name = p2Config?.name || 'CPU';
-        
-        // Determine if p1 won, p2 won, or draw
-        const p1Won = winnerId === 'p1';
-        const p2Won = winnerId === 'p2';
-        
-        // Build image paths - only V (victory) for winner, D (defeat) for loser
-        const getCharacterImagePath = (characterId, suffix) => {
+        // Simple path builder
+        const getImagePath = (characterId, suffix) => {
             if (!characterId) return '';
-            const folderName = `${characterId.charAt(0).toUpperCase()}${characterId.slice(1)}`;
-            const baseId = characterId.toLowerCase();
-            return `assets/characters/${folderName}/visuals/${baseId}${suffix}.png`;
+            const folderName = characterId.charAt(0).toUpperCase() + characterId.slice(1).toLowerCase();
+            return `assets/characters/${folderName}/visuals/${characterId.toLowerCase()}${suffix}.png`;
         };
         
-        const p1Id_str = p1Config?.id || '';
-        const p2Id_str = p2Config?.id || '';
-        
-        // Determine PNG paths and names - winner always on left, loser always on right
-        let winnerPNGPath = '';
-        let loserPNGPath = '';
-        let winnerCharacterId = '';
-        let loserCharacterId = '';
-        let winnerName = '';
-        let loserName = '';
+        // Determine what goes on left (winner side) and right (loser side)
+        let leftCharacter, rightCharacter, leftSuffix, rightSuffix;
         
         if (isDraw) {
-            // Draw: both are losers, p1 on left, p2 on right
-            winnerCharacterId = p1Id_str;
-            loserCharacterId = p2Id_str;
-            winnerName = p1Name;
-            loserName = p2Name;
-            winnerPNGPath = p1Id_str ? getCharacterImagePath(p1Id_str, 'D') : '';
-            loserPNGPath = p2Id_str ? getCharacterImagePath(p2Id_str, 'D') : '';
+            // Draw: both are losers, p1 left, p2 right
+            leftCharacter = p1Config;
+            rightCharacter = p2Config;
+            leftSuffix = 'D';
+            rightSuffix = 'D';
         } else {
-            // Winner PNG always goes on left (winnerImg), loser PNG always goes on right (loserImg)
-            if (p1Won) {
-                winnerCharacterId = p1Id_str;
-                loserCharacterId = p2Id_str;
-                winnerName = p1Name;
-                loserName = p2Name;
-                winnerPNGPath = p1Id_str ? getCharacterImagePath(p1Id_str, 'V') : '';
-                loserPNGPath = p2Id_str ? getCharacterImagePath(p2Id_str, 'D') : '';
-            } else if (p2Won) {
-                winnerCharacterId = p2Id_str;
-                loserCharacterId = p1Id_str;
-                winnerName = p2Name;
-                loserName = p1Name;
-                winnerPNGPath = p2Id_str ? getCharacterImagePath(p2Id_str, 'V') : '';
-                loserPNGPath = p1Id_str ? getCharacterImagePath(p1Id_str, 'D') : '';
+            // Winner always left, loser always right
+            if (winnerId === 'p1') {
+                leftCharacter = p1Config;
+                rightCharacter = p2Config;
+                leftSuffix = 'V';
+                rightSuffix = 'D';
+            } else {
+                leftCharacter = p2Config;
+                rightCharacter = p1Config;
+                leftSuffix = 'V';
+                rightSuffix = 'D';
             }
         }
         
-        // Debug logging
-        console.log('=== END SCREEN DEBUG ===');
-        console.log('winnerId:', winnerId, 'p1Won:', p1Won, 'p2Won:', p2Won);
-        console.log('p1Fighter id:', p1Fighter?.id, 'p2Fighter id:', p2Fighter?.id);
-        console.log('p1Config id:', p1Config?.id, 'p2Config id:', p2Config?.id);
-        console.log('p1Id_str:', p1Id_str, 'p2Id_str:', p2Id_str);
-        console.log('p1Name:', p1Name, 'p2Name:', p2Name);
-        console.log('Winner character:', winnerCharacterId, 'Loser character:', loserCharacterId);
-        console.log('Winner name:', winnerName, 'Loser name:', loserName);
-        console.log('Winner PNG path:', winnerPNGPath);
-        console.log('Loser PNG path:', loserPNGPath);
-        console.log('========================');
+        // Build paths and names
+        const leftPNGPath = leftCharacter?.id ? getImagePath(leftCharacter.id, leftSuffix) : '';
+        const rightPNGPath = rightCharacter?.id ? getImagePath(rightCharacter.id, rightSuffix) : '';
+        const leftName = leftCharacter?.name || 'PLAYER 1';
+        const rightName = rightCharacter?.name || 'CPU';
         
         // Get end screen elements
         const endScreen = document.getElementById('end-screen');
-        const winnerImg = document.getElementById('winner-background-png-image'); // Left side (always p1)
-        const loserImg = document.getElementById('loser-background-png-image'); // Right side (always p2)
-        const winnerNameDisplay = document.querySelector('.character-name-winner'); // Left side (always p1)
-        const loserNameDisplay = document.querySelector('.character-name-loser'); // Right side (always p2)
-        const winnerText = document.getElementById('winner-text'); // Left side text
-        const loserText = document.getElementById('loser-text'); // Right side text
+        const winnerImg = document.getElementById('winner-background-png-image');
+        const loserImg = document.getElementById('loser-background-png-image');
+        const winnerNameDisplay = document.querySelector('.character-name-winner');
+        const loserNameDisplay = document.querySelector('.character-name-loser');
+        const winnerText = document.getElementById('winner-text');
+        const loserText = document.getElementById('loser-text');
         const drawText = document.getElementById('draw-text');
-        const player1Label = document.getElementById('player1-label'); // Player 1 label (left, under winner text)
-        const player2Label = document.getElementById('player2-label'); // Player 2 label (right, under loser text)
+        const player1Label = document.getElementById('player1-label');
+        const player2Label = document.getElementById('player2-label');
         
         // Show end screen
-        if (endScreen) {
-            endScreen.classList.add('show');
-        }
+        if (endScreen) endScreen.classList.add('show');
         
         if (isDraw) {
-            // Draw case: both are losers, show D PNGs
-            // Hide winner/loser text, show DRAW text
+            // Draw case: hide winner/loser text, show DRAW text
             if (winnerText) {
                 winnerText.classList.remove('visible');
                 winnerText.style.left = '';
                 winnerText.style.right = '';
-                winnerText.className = 'winner-text'; // Reset to default class
+                winnerText.className = 'winner-text';
             }
             if (loserText) {
                 loserText.classList.remove('visible');
                 loserText.style.left = '';
                 loserText.style.right = '';
-                loserText.className = 'loser-text'; // Reset to default class
+                loserText.className = 'loser-text';
             }
             if (drawText) drawText.classList.add('visible');
             
-            // Hide player labels in draw case (since winner/loser text is hidden)
-            if (player1Label) {
-                player1Label.classList.remove('visible');
-            }
-            if (player2Label) {
-                player2Label.classList.remove('visible');
-            }
+            // Hide player labels in draw case
+            if (player1Label) player1Label.classList.remove('visible');
+            if (player2Label) player2Label.classList.remove('visible');
             
-            // Draw case: both are losers, p1 on left (winnerImg), p2 on right (loserImg)
-            if (winnerImg && winnerPNGPath) {
-                winnerImg.src = winnerPNGPath;
-                winnerImg.style.display = 'block';
-                // Clear any previous state classes
-                winnerImg.classList.remove('draw-loser', 'winner-state');
-                winnerImg.classList.add('slide-in', 'selected', 'draw-loser'); // Grayscale styling for draw
-                winnerImg.onload = () => {
-                    winnerImg.style.opacity = '1';
-                    winnerImg.style.visibility = 'visible';
-                };
-                winnerImg.onerror = () => {
-                    winnerImg.style.display = 'none';
-                };
-            }
+            // Both images get loser styling
+            this.loadCharacterImage(winnerImg, leftPNGPath, 'p1-png', true);
+            this.loadCharacterImage(loserImg, rightPNGPath, 'p2-png', false);
             
-            if (loserImg && loserPNGPath) {
-                loserImg.src = loserPNGPath;
-                loserImg.style.display = 'block';
-                // Clear any previous state classes
-                loserImg.classList.remove('draw-loser', 'winner-state');
-                loserImg.classList.add('slide-in', 'selected'); // Default grayscale styling
-                loserImg.onload = () => {
-                    loserImg.style.opacity = '1';
-                    loserImg.style.visibility = 'visible';
-                };
-                loserImg.onerror = () => {
-                    loserImg.style.display = 'none';
-                };
-            }
-            
-            // Show player labels under the text (for draw, both are losers so labels show but no winner/loser text)
+            // Show player labels
             if (player1Label) {
                 player1Label.textContent = 'PLAYER 1';
                 player1Label.classList.add('visible');
@@ -242,104 +169,43 @@ export class UIManager {
                 player2Label.textContent = 'PLAYER 2';
                 player2Label.classList.add('visible');
             }
-            
-            // Update name displays - show winner name on left, loser name on right
-            if (winnerNameDisplay) {
-                console.log('Setting winnerNameDisplay (left) to:', winnerName);
-                winnerNameDisplay.textContent = winnerName;
-                winnerNameDisplay.classList.add('loaded', 'pop-visible');
-            }
-            
-            if (loserNameDisplay) {
-                console.log('Setting loserNameDisplay (right) to:', loserName);
-                loserNameDisplay.textContent = loserName;
-                loserNameDisplay.classList.add('loaded', 'pop-visible');
-            }
         } else {
-            // Normal win case: show winner/loser text and appropriate PNGs
-            // Hide DRAW text
+            // Win case: show winner/loser text
             if (drawText) drawText.classList.remove('visible');
             
-            // Show winner/loser text
-            // When p1 wins: "Winner" (golden, big) on left, "Loser" (gray, small) on right
-            // When p2 wins: "Loser" (gray, small) on left, "Winner" (golden, big) on right
-            if (p1Won) {
-                // Normal case: winner on left, loser on right
+            // Position text based on who won
+            if (winnerId === 'p1') {
                 if (winnerText) {
                     winnerText.textContent = 'Winner';
-                    winnerText.className = 'winner-text visible'; // Default positioning (left)
+                    winnerText.className = 'winner-text visible';
                 }
                 if (loserText) {
                     loserText.textContent = 'Loser';
-                    loserText.className = 'loser-text visible'; // Default positioning (right)
+                    loserText.className = 'loser-text visible';
                 }
-            } else if (p2Won) {
-                // Swapped case: loser on left (winnerText element), winner on right (loserText element)
+            } else {
                 if (winnerText) {
                     winnerText.textContent = 'Loser';
-                    winnerText.className = 'loser-text loser-left visible'; // Gray, small styling, positioned on left
+                    winnerText.className = 'loser-text loser-left visible';
                 }
                 if (loserText) {
                     loserText.textContent = 'Winner';
-                    loserText.className = 'winner-text winner-right visible'; // Golden, big styling, positioned on right
+                    loserText.className = 'winner-text winner-right visible';
                 }
             }
             
-            // Winner always on left (winnerImg), Loser always on right (loserImg)
-            // Ensure winnerImg has p1-png class (left position, winner styling) and loserImg has p2-png class (right position, loser styling)
-            if (winnerImg && winnerPNGPath) {
-                console.log('Loading winner PNG into winnerImg (left):', winnerPNGPath);
-                // Force reload by adding timestamp or clearing first
-                winnerImg.style.display = 'none';
-                winnerImg.style.opacity = '0';
-                winnerImg.style.visibility = 'hidden';
-                // Ensure correct classes: p1-png for left positioning and winner styling
-                winnerImg.className = 'background-png p1-png';
-                // Set src and then add animation classes
-                winnerImg.src = winnerPNGPath + '?t=' + Date.now(); // Force reload with timestamp
-                winnerImg.style.display = 'block';
-                winnerImg.classList.add('slide-in', 'selected');
-                // Winner always gets winner styling (golden glow, no grayscale) - default .p1-png.selected
-                winnerImg.onload = () => {
-                    console.log('Winner PNG loaded - Expected:', winnerPNGPath);
-                    console.log('Winner PNG loaded - Actual src:', winnerImg.src);
-                    console.log('Winner PNG classes:', winnerImg.className);
-                    winnerImg.style.opacity = '1';
-                    winnerImg.style.visibility = 'visible';
-                };
-                winnerImg.onerror = () => {
-                    console.error('Failed to load winner PNG:', winnerPNGPath);
-                    winnerImg.style.display = 'none';
-                };
+            // Load images - swap when p2 wins to match text positioning
+            if (winnerId === 'p1') {
+                // P1 wins: winner left (golden), loser right (grayscale)
+                this.loadCharacterImage(winnerImg, leftPNGPath, 'p1-png', false);
+                this.loadCharacterImage(loserImg, rightPNGPath, 'p2-png', false);
+            } else {
+                // P2 wins: loser left (grayscale), winner right (golden)
+                this.loadCharacterImage(winnerImg, rightPNGPath, 'p1-png', true);
+                this.loadCharacterImage(loserImg, leftPNGPath, 'p2-png', false, true);
             }
             
-            if (loserImg && loserPNGPath) {
-                console.log('Loading loser PNG into loserImg (right):', loserPNGPath);
-                // Force reload by adding timestamp or clearing first
-                loserImg.style.display = 'none';
-                loserImg.style.opacity = '0';
-                loserImg.style.visibility = 'hidden';
-                // Ensure correct classes: p2-png for right positioning and loser styling
-                loserImg.className = 'background-png p2-png';
-                // Set src and then add animation classes
-                loserImg.src = loserPNGPath + '?t=' + Date.now(); // Force reload with timestamp
-                loserImg.style.display = 'block';
-                loserImg.classList.add('slide-in', 'selected');
-                // Loser always gets loser styling (grayscale) - default .p2-png.selected
-                loserImg.onload = () => {
-                    console.log('Loser PNG loaded - Expected:', loserPNGPath);
-                    console.log('Loser PNG loaded - Actual src:', loserImg.src);
-                    console.log('Loser PNG classes:', loserImg.className);
-                    loserImg.style.opacity = '1';
-                    loserImg.style.visibility = 'visible';
-                };
-                loserImg.onerror = () => {
-                    console.error('Failed to load loser PNG:', loserPNGPath);
-                    loserImg.style.display = 'none';
-                };
-            }
-            
-            // Show player labels under the winner/loser text
+            // Show player labels
             if (player1Label) {
                 player1Label.textContent = 'PLAYER 1';
                 player1Label.classList.add('visible');
@@ -348,36 +214,93 @@ export class UIManager {
                 player2Label.textContent = 'PLAYER 2';
                 player2Label.classList.add('visible');
             }
-            
-            // Update name displays - show winner name on left, loser name on right
+        }
+        
+        // Update name displays - swap when p2 wins to match image/text positioning
+        if (isDraw || winnerId === 'p1') {
+            // Draw or p1 wins: left shows leftName, right shows rightName
             if (winnerNameDisplay) {
-                console.log('Setting winnerNameDisplay (left) to:', winnerName);
-                winnerNameDisplay.textContent = winnerName;
+                winnerNameDisplay.textContent = leftName;
                 winnerNameDisplay.classList.add('loaded', 'pop-visible');
             }
-            
             if (loserNameDisplay) {
-                console.log('Setting loserNameDisplay (right) to:', loserName);
-                loserNameDisplay.textContent = loserName;
+                loserNameDisplay.textContent = rightName;
+                loserNameDisplay.classList.add('loaded', 'pop-visible');
+            }
+        } else {
+            // P2 wins: left shows rightName (loser), right shows leftName (winner)
+            if (winnerNameDisplay) {
+                winnerNameDisplay.textContent = rightName;
+                winnerNameDisplay.classList.add('loaded', 'pop-visible');
+            }
+            if (loserNameDisplay) {
+                loserNameDisplay.textContent = leftName;
                 loserNameDisplay.classList.add('loaded', 'pop-visible');
             }
         }
 
-        // Setup button event listeners and keyboard navigation
+        // Setup buttons
+        this.setupEndScreenButtons();
+    }
+
+    updateEndScreenButtonFocus(buttons) {
+        buttons.forEach((btn, index) => {
+            if (index === this.endScreenButtonIndex) {
+                btn.classList.add('focused');
+            } else {
+                btn.classList.remove('focused');
+            }
+        });
+    }
+
+    loadCharacterImage(imgElement, imagePath, baseClass, isDrawLoser, isWinnerOnRight = false) {
+        if (!imgElement || !imagePath) return;
+        
+        // Reset state
+        imgElement.style.display = 'none';
+        imgElement.style.opacity = '0';
+        imgElement.style.visibility = 'hidden';
+        
+        // Set base classes
+        imgElement.className = `background-png ${baseClass}`;
+        
+        // Add state classes
+        const classes = ['slide-in', 'selected'];
+        if (isDrawLoser && baseClass === 'p1-png') {
+            classes.push('draw-loser');
+        }
+        if (isWinnerOnRight && baseClass === 'p2-png') {
+            classes.push('winner-state');
+        }
+        
+        // Load image
+        imgElement.src = imagePath + '?t=' + Date.now();
+        imgElement.style.display = 'block';
+        imgElement.classList.add(...classes);
+        
+        imgElement.onload = () => {
+            imgElement.style.opacity = '1';
+            imgElement.style.visibility = 'visible';
+        };
+        
+        imgElement.onerror = () => {
+            console.error('Failed to load character image:', imagePath);
+            imgElement.style.display = 'none';
+        };
+    }
+
+    setupEndScreenButtons() {
+        const endScreen = document.getElementById('end-screen');
         let restartBtn = document.getElementById('btn-restart-end');
         let backBtn = document.getElementById('btn-back-selection-end');
-
-        // Initialize keyboard navigation state
+        
         this.endScreenButtonIndex = 0;
-
-        // Remove old keyboard listener if it exists
+        
         if (this.endScreenKeyboardHandler) {
             window.removeEventListener('keydown', this.endScreenKeyboardHandler);
         }
-
-        // Setup button click handlers first and get the actual button elements
+        
         if (restartBtn) {
-            // Remove old listener by cloning the button
             const newRestartBtn = restartBtn.cloneNode(true);
             restartBtn.parentNode.replaceChild(newRestartBtn, restartBtn);
             restartBtn = newRestartBtn;
@@ -387,9 +310,8 @@ export class UIManager {
                 if (this.onRestartFight) this.onRestartFight();
             });
         }
-
+        
         if (backBtn) {
-            // Remove old listener by cloning the button
             const newBackBtn = backBtn.cloneNode(true);
             backBtn.parentNode.replaceChild(newBackBtn, backBtn);
             backBtn = newBackBtn;
@@ -399,19 +321,15 @@ export class UIManager {
                 if (this.onMainMenu) this.onMainMenu();
             });
         }
-
-        // Create buttons array with actual button elements (after cloning)
+        
         const buttons = [restartBtn, backBtn].filter(btn => btn !== null);
-
-        // Store buttons reference for keyboard handler
         this.endScreenButtons = buttons;
-
-        // Setup keyboard navigation
+        
         this.endScreenKeyboardHandler = (e) => {
             if (!endScreen || !endScreen.classList.contains('show')) {
-                return; // End screen not visible, ignore
+                return;
             }
-
+            
             const key = e.key.toLowerCase();
             if (key === 'arrowup') {
                 e.preventDefault();
@@ -428,21 +346,9 @@ export class UIManager {
                 }
             }
         };
-
+        
         window.addEventListener('keydown', this.endScreenKeyboardHandler);
-
-        // Set initial focus on first button
         this.updateEndScreenButtonFocus(buttons);
-    }
-
-    updateEndScreenButtonFocus(buttons) {
-        buttons.forEach((btn, index) => {
-            if (index === this.endScreenButtonIndex) {
-                btn.classList.add('focused');
-            } else {
-                btn.classList.remove('focused');
-            }
-        });
     }
 
     handlePauseToggle() {

@@ -76,6 +76,10 @@ export class InputHandler {
         return { ...this.keys };
     }
 
+    getJustPressed() {
+        return { ...this.justPressed };
+    }
+
     clearKeys() {
         this.keys = {};
         this.justPressed = {};

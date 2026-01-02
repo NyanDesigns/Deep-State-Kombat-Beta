@@ -1,12 +1,14 @@
 import { HUD } from './HUD.js';
 import { PauseMenu } from './PauseMenu.js';
 import { DebugPanel } from './DebugPanel.js';
+import { KeyDisplay } from './KeyDisplay.js';
 
 export class UIManager {
     constructor() {
         this.hud = new HUD();
         this.pauseMenu = new PauseMenu();
         this.debugPanel = new DebugPanel();
+        this.keyDisplay = new KeyDisplay();
         this.onPauseToggle = null;
         this.onRestartFight = null;
         this.onMainMenu = null;
@@ -18,6 +20,7 @@ export class UIManager {
     init() {
         this.pauseMenu.init(this.handlePauseToggle.bind(this), this.handleRestartFight.bind(this), this.handleMainMenu.bind(this));
         this.debugPanel.init();
+        this.keyDisplay.init();
     }
 
     updateHUD(fighters, timer) {
@@ -50,6 +53,18 @@ export class UIManager {
 
     hideDebugPanel() {
         this.debugPanel.hide();
+    }
+
+    updateKeyDisplay(keys, justPressed) {
+        this.keyDisplay.update(keys, justPressed);
+    }
+
+    showKeyDisplay() {
+        this.keyDisplay.show();
+    }
+
+    hideKeyDisplay() {
+        this.keyDisplay.hide();
     }
 
     showCountdown(count) {

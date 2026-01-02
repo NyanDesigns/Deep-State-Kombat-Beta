@@ -5,7 +5,6 @@ export class DebugPanel {
         this.visible = false;
         this.showParams = false;
         this.showTimer = false;
-        this.showInputs = false;
     }
 
     init() {
@@ -29,7 +28,7 @@ export class DebugPanel {
     }
 
     update(fighters, gameState, timer) {
-        if (!this.visible || (!this.showParams && !this.showInputs)) return;
+        if (!this.visible || !this.showParams) return;
 
         const panel = document.getElementById('debug-panel');
         if (!panel) return;
@@ -62,16 +61,6 @@ export class DebugPanel {
                 html += `<div>Light: ${CONFIG.combat.light.dmg}dmg/${CONFIG.combat.light.cost}st</div>`;
                 html += `<div>Heavy: ${CONFIG.combat.heavy.dmg}dmg/${CONFIG.combat.heavy.cost}st</div>`;
             }
-
-            if (this.showInputs) {
-                const renderInputs = (f, color) => {
-                    const recent = (f.inputLog || []).map(e => e.label).slice(-6).join(', ');
-                    return `<div style="color:${color}">Last Inputs: ${recent || 'none'} | Combo: ${f.comboCount}/${f.maxCombo} ${f.comboWindowOpen ? '(window)' : ''} ${f.comboQueuedType ? 'queued:' + f.comboQueuedType : ''}</div>`;
-                };
-                html += '<br><strong>INPUT / COMBO</strong><br>';
-                html += renderInputs(p1, '#0f0');
-                html += renderInputs(p2, '#f00');
-            }
         }
 
         panel.innerHTML = html;
@@ -80,9 +69,8 @@ export class DebugPanel {
     setOptions(options) {
         this.showParams = options.params || false;
         this.showTimer = options.timer || false;
-        this.showInputs = options.inputs || false;
 
-        if (this.showParams || this.showInputs) {
+        if (this.showParams) {
             this.show();
         } else {
             this.hide();

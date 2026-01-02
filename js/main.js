@@ -94,6 +94,13 @@ function setupCallbacks() {
         uiManager.debugPanel.setOptions(options);
         storageManager.saveGameSettings({ debug: options });
         
+        // Update key display visibility
+        if (options.keys) {
+            uiManager.showKeyDisplay();
+        } else {
+            uiManager.hideKeyDisplay();
+        }
+        
         // Update fighter visualizations
         if (fighters.length === 2) {
             fighters[0].setHitboxVisibility(options.hitboxes || false);
@@ -160,6 +167,8 @@ function handleStateChange(newState) {
         case 'SETUP':
             uiManager.hideHUD();
             uiManager.hidePauseMenu();
+            uiManager.hideDebugPanel();
+            uiManager.hideKeyDisplay();
             setupScreen.show();
             break;
         case 'COUNTDOWN':
@@ -267,6 +276,10 @@ async function initializeSystems() {
     if (savedSettings?.debug) {
         uiManager.pauseMenu.setDebugOptions(savedSettings.debug);
         uiManager.debugPanel.setOptions(savedSettings.debug);
+        // Restore key display state (callback not set up yet, so do it manually)
+        if (savedSettings.debug.keys) {
+            uiManager.showKeyDisplay();
+        }
     }
 
     // Setup all callbacks
@@ -845,6 +858,11 @@ function animate() {
         cameraController.update(dt, fighters, state);
         uiManager.updateHUD(fighters, gameState.getTimer());
         uiManager.updateDebugPanel(fighters, state, gameState.getTimer());
+        
+        // Update key display before clearing justPressed
+        const justPressed = inputHandler.getJustPressed();
+        uiManager.updateKeyDisplay(keys, justPressed);
+        
         checkVictoryByHealth();
         
         // Clear justPressed keys at the end of the frame (edge detection reset for next frame)

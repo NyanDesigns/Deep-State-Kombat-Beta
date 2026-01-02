@@ -11,6 +11,7 @@
     <link rel="stylesheet" href="css/hud.css">
     <link rel="stylesheet" href="css/pause-menu.css">
     <link rel="stylesheet" href="css/debug.css">
+    <link rel="stylesheet" href="css/key-display.css">
     <link rel="stylesheet" href="css/character-select.css">
     <link rel="stylesheet" href="css/end-screen.css">
     <link rel="stylesheet" href="css/loading-screen.css">
@@ -237,9 +238,9 @@
                         </label>
 
                         <label class="debug-option">
-                            <span>Show Inputs/Combo</span>
+                            <span>Show Key Presses</span>
                             <div class="toggle-switch">
-                                <input type="checkbox" id="debug-inputs">
+                                <input type="checkbox" id="debug-keys">
                                 <span class="toggle-slider"></span>
                             </div>
                         </label>
@@ -254,6 +255,9 @@
 
         <!-- Debug Info Panel -->
         <div id="debug-panel"></div>
+
+        <!-- Key Display -->
+        <div id="key-display"></div>
     </div>
 
     <!-- Loading Screen -->

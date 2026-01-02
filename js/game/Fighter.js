@@ -732,9 +732,9 @@ export class Fighter {
             return;
         }
 
-        // Passive stamina regeneration
+        // Passive stamina regeneration (slowed down for better balance)
         if (this.st < this.maxSt) {
-            const regenRate = this.characterConfig?.stats?.staminaRegen || 12;
+            const regenRate = this.characterConfig?.stats?.staminaRegen || 5;
             this.st = Math.min(this.maxSt, this.st + regenRate * dt);
         }
         this.updateUI();

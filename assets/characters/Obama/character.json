@@ -6,7 +6,7 @@
   "stats": {
     "hp": 110,
     "stamina": 100,
-    "staminaRegen": 13,
+    "staminaRegen": 5,
     "moveSpeed": 4.0,
     "jumpHeight": 2.2,
     "weight": 1.0
@@ -14,13 +14,13 @@
   "combat": {
     "light": {
       "dmg": 20,
-      "cost": 24,
+      "cost": 9,
       "range": 2.2,
       "window": [0.2, 0.5]
     },
     "heavy": {
       "dmg": 40,
-      "cost": 43,
+      "cost": 18,
       "range": 2.7,
       "window": [0.4, 0.8]
     }

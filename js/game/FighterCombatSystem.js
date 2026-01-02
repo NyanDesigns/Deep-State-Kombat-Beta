@@ -263,8 +263,10 @@ export class FighterCombatSystem {
             }
         }
 
-        // Gain stamina when landing a successful hit
-        const staminaGain = attacker.isHeavyAttack(attacker.atkType) ? 15 : 8;
+        // Gain stamina when landing a successful hit (proportional to new costs)
+        // Light attacks cost 9, so give back 2 (net cost: 7)
+        // Heavy attacks cost 18, so give back 4 (net cost: 14)
+        const staminaGain = attacker.isHeavyAttack(attacker.atkType) ? 4 : 2;
         attacker.st = Math.min(attacker.maxSt, attacker.st + staminaGain);
         attacker.updateUI();
 
@@ -286,9 +288,18 @@ export class FighterCombatSystem {
      * @returns {object} Damage result { state, pushbackAmount }
      */
     takeDamage(fighter, amount, type, attacker) {
+        // Safety check: ensure fighter is not the attacker (prevent attacker from getting victim's stamina recovery)
+        if (attacker && fighter === attacker) {
+            console.warn('FighterCombatSystem.takeDamage: fighter and attacker are the same! This should not happen.');
+            return { state: fighter.stateManager?.getCurrentState() || fighter.state, pushbackAmount: 0 };
+        }
+        
         fighter.hp = Math.max(0, fighter.hp - amount);
-        // Gain stamina when getting hit
-        const staminaGainOnHit = fighter.isHeavyAttack(type) ? 20 : 12;
+        // Gain stamina when getting hit (victim only - attacker should never receive this)
+        // Check if the attacker's attack type is heavy, not the victim's
+        const isHeavy = attacker && attacker.isHeavyAttack ? attacker.isHeavyAttack(type) : (type === 'heavy' || type === 'leftLeg' || type === 'rightLeg');
+        // Balanced proportionally to new costs
+        const staminaGainOnHit = isHeavy ? 10 : 7;
         fighter.st = Math.min(fighter.maxSt, fighter.st + staminaGainOnHit);
         
         // Pushback when hit
@@ -299,7 +310,8 @@ export class FighterCombatSystem {
             if (pushDirection.lengthSq() > 0) {
                 pushDirection.normalize();
                 
-                const isHeavy = fighter.isHeavyAttack(type);
+                // Use attacker's method to check if attack is heavy (for pushback calculation)
+                const isHeavy = attacker && attacker.isHeavyAttack ? attacker.isHeavyAttack(type) : (type === 'heavy' || type === 'leftLeg' || type === 'rightLeg');
                 const basePushAmount = isHeavy 
                     ? CONFIG.combat.movement.pushback.heavy 
                     : CONFIG.combat.movement.pushback.light;

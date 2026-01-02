@@ -73,14 +73,22 @@ export class InputController {
             return result;
         }
 
-        // Movement controls (A/D keys)
-        // A = backward, D = forward (relative to character facing direction)
+        // Movement controls
+        // A = backward, D = forward, Q = right, E = left (relative to character facing direction)
         const forward = new THREE.Vector3(0, 0, 1);
         forward.applyQuaternion(characterQuaternion);
         forward.y = 0;
         forward.normalize();
 
+        // Calculate right vector (perpendicular to forward)
+        const right = new THREE.Vector3(1, 0, 0);
+        right.applyQuaternion(characterQuaternion);
+        right.y = 0;
+        right.normalize();
+
         let moveDir = 0;
+        
+        // Forward/Backward movement (A/D keys)
         if (keys['a'] || keys['A']) {
             // Move backward (opposite of forward direction)
             result.movement.addScaledVector(forward, -moveSpeed);
@@ -89,7 +97,17 @@ export class InputController {
         if (keys['d'] || keys['D']) {
             // Move forward (in forward direction)
             result.movement.addScaledVector(forward, moveSpeed);
-            moveDir = 1;
+            if (moveDir === 0) moveDir = 1;
+        }
+
+        // Left/Right movement (Q/E keys)
+        if (keys['q'] || keys['Q']) {
+            // Move right (in right direction)
+            result.movement.addScaledVector(right, moveSpeed);
+        }
+        if (keys['e'] || keys['E']) {
+            // Move left (opposite of right direction)
+            result.movement.addScaledVector(right, -moveSpeed);
         }
 
         result.moveDirection = moveDir;

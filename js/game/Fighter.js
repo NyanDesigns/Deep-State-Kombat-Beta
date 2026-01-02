@@ -4,10 +4,12 @@ import { CONFIG } from '../config.js';
 import { BoneDiscovery } from '../utils/BoneDiscovery.js';
 import { HitboxSystem } from '../utils/HitboxSystem.js';
 import { AIController } from './AIController.js';
-import { AnimationController } from '../systems/AnimationController.js';
 import { MotionController } from '../systems/MotionController.js';
-import { AnimationStateMachine } from '../systems/AnimationStateMachine.js';
-import { LocomotionBlender } from '../systems/LocomotionBlender.js';
+import { InputController } from '../systems/input/InputController.js';
+import { MovementSystem } from '../systems/movement/MovementSystem.js';
+import { AnimationSystem } from '../systems/animation/AnimationSystem.js';
+import { StateManager } from './StateManager.js';
+import { FighterCombatSystem } from './FighterCombatSystem.js';
 
 export class Fighter {
     constructor(id, pos, isAI, gltf, scene, characterConfig = null) {
@@ -102,21 +104,28 @@ export class Fighter {
         this.animationFade = characterConfig?.animationSettings?.fadeTime ?? 0.1;
         this.availableClips = [];
         
-        // Animation system - will be initialized after animations load
-        this.animationController = null;
-        this.animationStateMachine = null;
-        this.locomotionBlender = null;
-        
         // Motion system
         const motionConfig = CONFIG.animation?.motion || {};
         motionConfig.maxSpeed = this.moveSpeed;
         this.motionController = new MotionController(motionConfig);
         this.desiredVelocity = new THREE.Vector3();
         
+        // Initialize subsystems
+        this.inputController = new InputController();
+        this.movementSystem = new MovementSystem(this.motionController);
+        this.stateManager = new StateManager({ priorities: CONFIG.animation?.priorities });
+        this.combatSystem = new FighterCombatSystem();
+        
+        // Animation system - will be initialized after animations load
+        this.animationSystem = null;
+        this.animationController = null; // Keep for backward compatibility during transition
+        
         // Crouch duration (unified timing)
         this.crouchDuration = CONFIG.animation?.locomotion?.crouchDuration || 0.5;
 
-        this.state = 'IDLE';
+        // Initialize state
+        this.stateManager.setState('IDLE');
+        this.state = 'IDLE'; // Keep for backward compatibility
         this.currAct = null; // Keep for backward compatibility during transition
 
         // Combat vars
@@ -227,13 +236,13 @@ export class Fighter {
         // Initialize animation system after animations are loaded
         this.initializeAnimationSystem();
         
-        this.state = 'IDLE';
-        // Start with idle via animation controller
-        if (this.animationController) {
-            this.animationController.updateLocomotionBlend(0, 1);
-        } else {
-            // Fallback to old system
-            this.play('idle', 0);
+        // Set initial state
+        this.stateManager.setState('IDLE');
+        this.state = 'IDLE'; // Keep for backward compatibility
+        
+        // Start with idle via animation system
+        if (this.animationSystem) {
+            this.animationSystem.updateLocomotionBlend(0, 1);
         }
     }
     
@@ -241,29 +250,21 @@ export class Fighter {
      * Initialize animation system components
      */
     initializeAnimationSystem() {
-        // Animation controller config
-        // NOTE: Do NOT pass character config playbackSpeed here - handle all speed calculations in Fighter methods
+        // Animation system config
+        // NOTE: Do NOT pass character config playbackSpeed here - handle all speed calculations in FighterCombatSystem
         // This prevents conflicts with combo speed calculations
         const animConfig = {
             priorities: CONFIG.animation?.priorities,
             crossfade: CONFIG.animation?.crossfade,
             locomotion: CONFIG.animation?.locomotion,
-            playbackSpeed: {} // Empty - speeds are calculated in Fighter.attack() and passed via timeScale option
+            playbackSpeed: {} // Empty - speeds are calculated in FighterCombatSystem and passed via timeScale option
         };
         
-        // Initialize AnimationController
-        this.animationController = new AnimationController(this.mixer, this.actions, animConfig);
+        // Initialize AnimationSystem (unified animation system)
+        this.animationSystem = new AnimationSystem(this.mixer, this.actions, animConfig);
         
-        // Initialize AnimationStateMachine
-        const stateMachineConfig = {
-            priorities: CONFIG.animation?.priorities
-        };
-        this.animationStateMachine = new AnimationStateMachine(stateMachineConfig);
-        this.animationStateMachine.setCurrentState('LOCOMOTION');
-        
-        // Initialize LocomotionBlender
-        const locomotionConfig = CONFIG.animation?.locomotion || {};
-        this.locomotionBlender = new LocomotionBlender(locomotionConfig);
+        // Keep animationController reference for backward compatibility during transition
+        this.animationController = this.animationSystem.animationController;
     }
     
     /**
@@ -509,132 +510,38 @@ export class Fighter {
         }
     }
 
-    play(name, fade = null, reverse = false, isCombo = false) {
-        const next = this.actions[name];
-        if (!next) return;
-        const fadeTime = (fade === null || fade === undefined) ? this.animationFade : fade;
-
-        // Get playback speed from config (default to 1.5x for attack animations, 1.0 for others)
-        let baseSpeed = 1.0;
-        const isAttackAnim =
-            name === 'atk1' ||
-            name === 'atk2' ||
-            name.startsWith('atk1_') ||
-            name.startsWith('atk2_') ||
-            name.toLowerCase().includes('punch') ||
-            name.toLowerCase().includes('kick');
-        if (isAttackAnim) {
-            // Slow legs slightly compared to punches
-            const lower = name.toLowerCase();
-            const isLeg = lower.includes('kick') || lower.includes('atk2');
-            baseSpeed = isLeg ? 3.0 : 3.5;
-        } else if (name === 'jump' || name === 'crouch') {
-            baseSpeed = 5.0; // Much faster defensive animations
-        }
-        // Apply character config as multiplier to BASE speed only (if exists)
-        // Character config should not override combo speeds
-        let playbackSpeed = baseSpeed;
-        const charConfigSpeed = this.characterConfig?.animationSettings?.playbackSpeed?.[name];
-        if (charConfigSpeed && !isCombo) {
-            // Only apply character config to initial attacks, use as multiplier
-            playbackSpeed *= charConfigSpeed;
-        }
-        
-        // Apply combo speed multiplier for combo attacks (subsequent hits in a combo)
-        if (isCombo && isAttackAnim) {
-            const comboMultiplier = CONFIG.combat.comboSpeedMultiplier || 17.1;
-            playbackSpeed *= comboMultiplier;
-        }
-
-        // If same animation is already playing, just update direction if needed
-        if (this.currAct === next) {
-            const currentTimeScale = next.timeScale || playbackSpeed;
-            const targetSpeed = reverse ? -playbackSpeed : playbackSpeed;
-            const needsReverse = reverse && currentTimeScale !== -playbackSpeed;
-            const needsForward = !reverse && currentTimeScale !== playbackSpeed;
-
-            if (needsReverse || needsForward) {
-                // Reverse the animation direction smoothly
-                const clip = next.getClip();
-                const currentTime = next.time;
-                const duration = clip.duration;
-
-                if (needsReverse) {
-                    // Switch from forward to reverse
-                    next.timeScale = -playbackSpeed;
-                    next.time = duration - currentTime;
-                } else {
-                    // Switch from reverse to forward
-                    next.timeScale = playbackSpeed;
-                    next.time = duration - currentTime;
-                }
-            }
-            return;
-        }
-
-        // New animation - fade in
-        next.reset().fadeIn(fadeTime).play();
-        if (reverse) {
-            next.timeScale = -playbackSpeed;
-            next.time = next.getClip().duration; // Start from end when reversed
-        } else {
-            next.timeScale = playbackSpeed;
-            next.time = 0; // Start from beginning when forward
-        }
-        if (this.currAct) this.currAct.fadeOut(fadeTime);
-        this.currAct = next;
-    }
-
-    applyPlaybackCurves() {
-        if (!this.currAct) return;
-        const clip = this.currAct.getClip();
-        if (!clip || clip.duration <= 0) return;
-
-        const clipName = clip.name?.toLowerCase() || '';
-        const isJump = clipName.includes('jump');
-
-        // Only apply curves to jump (crouch is now looping, so keep constant speed)
-        if (!isJump) return;
-
-        const ratio = Math.min(Math.max(this.currAct.time / clip.duration, 0), 1);
-
-        // Fast at start, ease down toward end (quadratic ease-out)
-        const startSpeed = 6.0;
-        const endSpeed = 2.8;
-        const ease = Math.pow(1 - ratio, 2); // 1 at start, 0 at end
-        const targetSpeed = endSpeed + (startSpeed - endSpeed) * ease;
-
-        const direction = this.currAct.timeScale < 0 ? -1 : 1;
-        this.currAct.timeScale = direction * targetSpeed;
-    }
 
     update(dt, opp, gameState, keys = {}, camera = null, collisionSystem = null, inputHandler = null) {
-        // Update animation controller
-        if (this.animationController) {
-            this.animationController.update(dt);
+        // 1. Update animation system
+        if (this.animationSystem) {
+            this.animationSystem.update(dt);
         }
         
         // Update mixer
         this.mixer.update(dt);
         
         // Update playback curves (for jump)
-        this.applyPlaybackCurves();
+        if (this.animationSystem && this.currAct) {
+            this.animationSystem.applyPlaybackCurves(this.currAct);
+        }
 
-        if (this.prevState !== this.state) {
+        // Track state changes
+        const currentState = this.stateManager.getCurrentState();
+        if (this.prevState !== currentState) {
             this.stateTimer = 0;
-            this.prevState = this.state;
+            this.prevState = currentState;
+            this.state = currentState; // Keep in sync for backward compatibility
         } else {
             this.stateTimer += dt;
         }
         
-        if (this.state === 'JUMP') {
-            // Hold invuln at start until animation moves a bit
-            const currAnim = this.animationController?.getCurrentAnimation() || this.currAct;
+        // Update jump invulnerability timer
+        if (currentState === 'JUMP') {
+            const currAnim = this.animationSystem?.getCurrentAnimation() || this.currAct;
             const clip = currAnim?.getClip();
             const ratio = clip && clip.duration > 0 ? currAnim.time / clip.duration : 1;
             const shouldTick = ratio > 0.08; // don't burn invuln before lift-off
             if (shouldTick) {
-                // Decay slower to lengthen invulnerability during airborne startup
                 const decayRate = ratio < 0.8 ? 0.3 : 0.6;
                 this.jumpInvulnerabilityTimer = Math.max(0, this.jumpInvulnerabilityTimer - dt * decayRate);
             }
@@ -642,48 +549,64 @@ export class Fighter {
             this.jumpInvulnerabilityTimer = 0;
         }
 
-        if (!this.isAI && this.state === 'ATTACK') {
-            const queuedAttack = this.getAttackInput(keys);
+        // Queue combo attacks during attack state
+        if (!this.isAI && currentState === 'ATTACK') {
+            const queuedAttack = this.inputController.getAttackType(keys);
             if (queuedAttack) {
                 this.comboQueuedType = queuedAttack;
             }
         }
 
         if (gameState !== 'FIGHT' && gameState !== 'OVER') return;
-        if (this.state === 'DEAD' || this.state === 'WIN') return;
+        if (currentState === 'DEAD' || currentState === 'WIN') return;
 
-        // Update motion controller for smooth movement
-        if (this.state === 'IDLE' || this.state === 'WALK') {
-            // Only allow movement in IDLE/WALK states
-            this.motionController.update(dt, this.desiredVelocity, this.mesh.position);
-            this.mesh.position.copy(this.motionController.position);
+        // 2. Process input (if not AI)
+        if (!this.isAI && gameState === 'FIGHT') {
+            const inputResult = this.inputController.processInput(
+                dt, keys, inputHandler, currentState, 
+                this.mesh.quaternion, this.moveSpeed
+            );
+            
+            // Handle attack input
+            if (inputResult.attack) {
+                this.combatSystem.attack(this, inputResult.attack, false);
+                this.desiredVelocity.set(0, 0, 0);
+            }
+            // Handle jump input
+            else if (inputResult.jump) {
+                this.jump();
+                this.desiredVelocity.set(0, 0, 0);
+            }
+            // Handle crouch exit
+            else if (inputResult.crouch === 'exit') {
+                this.exitCrouch();
+            }
+            // Handle movement
+            else {
+                this.desiredVelocity.copy(inputResult.movement);
+                this.moveDirection = inputResult.moveDirection;
+            }
+        }
+
+        // 3. Update movement (if in IDLE/WALK states)
+        if (currentState === 'IDLE' || currentState === 'WALK') {
+            const targetPos = opp && gameState === 'FIGHT' ? opp.mesh.position : null;
+            const movementResult = this.movementSystem.update(
+                dt, this.desiredVelocity, this.mesh.position,
+                this.mesh.quaternion, targetPos, this.facingOffset, gameState
+            );
+            
+            // Update position
+            this.mesh.position.copy(movementResult.position);
             
             // Update locomotion blend based on actual velocity
-            if (this.animationController) {
-                const speedNorm = this.motionController.getNormalizedSpeed();
-                const direction = this.motionController.getMovementDirection(this.mesh.quaternion);
-                this.animationController.updateLocomotionBlend(speedNorm, direction);
-                this.moveDirection = direction;
+            if (this.animationSystem) {
+                this.animationSystem.updateLocomotionBlend(movementResult.speed, movementResult.direction);
+                this.moveDirection = movementResult.direction;
             }
         } else {
             // Clear desired velocity in action states
             this.desiredVelocity.set(0, 0, 0);
-        }
-
-        // Smooth rotation toward opponent
-        if (gameState === 'FIGHT' && opp) {
-            const target = opp.mesh.position.clone();
-            target.y = this.mesh.position.y;
-            
-            // Calculate target quaternion
-            const targetQuat = new THREE.Quaternion();
-            const lookMatrix = new THREE.Matrix4().lookAt(this.mesh.position, target, this.upVector);
-            targetQuat.setFromRotationMatrix(lookMatrix);
-            targetQuat.multiply(this.facingOffset);
-            
-            // Smooth rotation via MotionController
-            const turnSpeed = CONFIG.animation?.motion?.turnSpeed || 10.0;
-            this.motionController.updateRotation(this.mesh.quaternion, targetQuat, dt, turnSpeed);
         }
 
         // Update world matrices after rotation to ensure bone positions are correct
@@ -701,260 +624,130 @@ export class Fighter {
         this.updateHitboxVisualization();
         this.updateCollisionBoxVisualization();
 
-        if (this.state === 'STUN') {
+        // 4. Handle state-specific logic
+        if (currentState === 'STUN') {
             this.stunTime -= dt;
             if (this.stunTime <= 0) {
+                this.stateManager.transitionTo('IDLE');
                 this.state = 'IDLE';
-                if (this.animationController) {
-                    this.animationController.transitionToBase(CONFIG.animation.crossfade.toBase);
-                } else {
-                    this.play('idle', this.animationFade);
+                if (this.animationSystem) {
+                    this.animationSystem.transitionToBase(CONFIG.animation.crossfade.toBase);
                 }
             }
             return;
         }
 
-        if (this.state === 'ATTACK') {
-            const currAnim = this.animationController?.getCurrentAnimation() || this.currAct;
+        if (currentState === 'ATTACK') {
+            const currAnim = this.animationSystem?.getCurrentAnimation() || this.currAct;
             const clip = currAnim?.getClip();
             const ratio = clip && clip.duration > 0 ? currAnim.time / clip.duration : 1;
-            const withinCombo = ratio >= this.comboWindowStart && ratio <= this.comboWindowEnd;
-            this.comboWindowOpen = withinCombo;
-
-            if (this.comboQueuedType && this.comboCount < this.maxCombo && (withinCombo || ratio >= this.comboWindowEnd)) {
-                const nextType = this.comboQueuedType;
-                this.comboQueuedType = null;
-                this.comboWindowOpen = false;
-                this.attack(nextType, true);
+            
+            // Process combo system
+            if (this.combatSystem.processCombo(this, this.comboQueuedType, ratio)) {
                 return;
             }
 
-            // Check if animation finished (handled by AnimationController callback, but check as fallback)
+            // Check if animation finished (handled by AnimationSystem callback, but check as fallback)
             if (!currAnim || !currAnim.isRunning() || this.stateTimer > 2.5) {
                 if (this.comboQueuedType && this.comboCount < this.maxCombo) {
-                    const nextType = this.comboQueuedType;
-                    this.comboQueuedType = null;
-                    this.comboWindowOpen = false;
-                    this.attack(nextType, true);
+                    this.combatSystem.attack(this, this.comboQueuedType, true);
                     return;
                 }
                 // Animation finished - should be handled by callback, but fallback here
-                if (this.state === 'ATTACK') {
+                if (currentState === 'ATTACK') {
+                    this.stateManager.transitionTo('IDLE');
                     this.state = 'IDLE';
                     this.atkGroup = null;
                     this.atkLimb = null;
                     this.activeAttackIndices = [];
                     this.comboCount = 0;
-                    if (this.animationController) {
-                        this.animationController.transitionToBase(CONFIG.animation.crossfade.toBase);
-                    } else {
-                        this.play('idle', this.animationFade);
+                    if (this.animationSystem) {
+                        this.animationSystem.transitionToBase(CONFIG.animation.crossfade.toBase);
                     }
                 }
             }
             return;
         }
 
-        if (this.state === 'JUMP') {
-            const currAnim = this.animationController?.getCurrentAnimation() || this.currAct;
+        if (currentState === 'JUMP') {
+            const currAnim = this.animationSystem?.getCurrentAnimation() || this.currAct;
             const clip = currAnim?.getClip();
             const ratio = clip && clip.duration > 0 ? currAnim.time / clip.duration : 1;
 
-            if (this.state === 'JUMP' && ratio >= this.jumpCancelStart) {
+            if (ratio >= this.jumpCancelStart) {
                 // Allow buffering next action mid-jump
-                const nextAttack = this.getAttackInput(keys);
+                const nextAttack = this.inputController.getAttackType(keys);
                 if (nextAttack) {
-                    this.attack(nextAttack);
+                    this.combatSystem.attack(this, nextAttack, false);
                     return;
                 }
-                if (this.keyDown(keys, 's')) {
+                if (this.inputController && this.inputController.keyDown(keys, 's')) {
                     this.crouch();
                     return;
                 }
                 if (ratio >= this.jumpAutoEnd) {
+                    this.stateManager.transitionTo('IDLE');
                     this.state = 'IDLE';
-                    if (this.animationController) {
-                        this.animationController.transitionToBase(CONFIG.animation.crossfade.toBase);
-                    } else {
-                        this.play('idle', this.animationFade);
+                    if (this.animationSystem) {
+                        this.animationSystem.transitionToBase(CONFIG.animation.crossfade.toBase);
                     }
                     return;
                 }
             }
 
-            // Check if animation finished (handled by AnimationController callback, but check as fallback)
+            // Check if animation finished
             if (!currAnim || !currAnim.isRunning() || this.stateTimer > 2.5) {
-                if (this.state === 'JUMP') {
+                if (currentState === 'JUMP') {
+                    this.stateManager.transitionTo('IDLE');
                     this.state = 'IDLE';
-                    if (this.animationController) {
-                        this.animationController.transitionToBase(CONFIG.animation.crossfade.toBase);
-                    } else {
-                        this.play('idle', this.animationFade);
+                    if (this.animationSystem) {
+                        this.animationSystem.transitionToBase(CONFIG.animation.crossfade.toBase);
                     }
                 }
             }
             return;
         }
 
-        // Crouch state - animation controller handles clamping
-        if (this.state === 'CROUCH') {
-            // Animation controller keeps animation at end when clamped
-            // Ensure animation stays clamped at end
-            const currAnim = this.animationController?.getCurrentAnimation();
+        // Crouch state - animation system handles clamping
+        if (currentState === 'CROUCH') {
+            const currAnim = this.animationSystem?.getCurrentAnimation();
             if (currAnim) {
                 const clip = currAnim.getClip();
                 if (clip && clip.duration > 0) {
-                    // Keep animation at the end if it's finished
                     if (currAnim.time >= clip.duration) {
                         currAnim.time = clip.duration;
-                        currAnim.paused = false; // Keep it running (but clamped)
+                        currAnim.paused = false;
                     }
-                    // Ensure clamp is set
                     currAnim.clampWhenFinished = true;
                 }
-                // Make sure the action layer knows not to auto-return
-                if (this.animationController) {
-                    this.animationController.preventAutoReturn();
+                if (this.animationSystem) {
+                    this.animationSystem.preventAutoReturn();
                 }
             }
-            // Keep checking if S is still held in updateInput
             return;
         }
 
-        // Crouch exiting state - handled by AnimationController callback
-        if (this.state === 'CROUCH_EXITING') {
-            // Animation controller will call onFinished callback when reverse animation completes
+        // Crouch exiting state - handled by AnimationSystem callback
+        if (currentState === 'CROUCH_EXITING') {
             return;
         }
 
-        // Passive stamina regeneration - stamina recharges slowly over time
+        // Passive stamina regeneration
         if (this.st < this.maxSt) {
             const regenRate = this.characterConfig?.stats?.staminaRegen || 12;
             this.st = Math.min(this.maxSt, this.st + regenRate * dt);
         }
         this.updateUI();
 
-        if (gameState === 'FIGHT') {
-            if (this.isAI) {
-                this.updateAI(dt, opp, collisionSystem);
-            } else {
-                this.updateInput(dt, keys, camera, inputHandler);
-            }
+        // 5. Update AI (if AI fighter)
+        if (gameState === 'FIGHT' && this.isAI) {
+            this.updateAI(dt, opp, collisionSystem);
         }
     }
 
     checkHit(opp) {
-        if (this.hitRegistered) return null;
-        if (this.state !== 'ATTACK') return null;
-
-        try {
-            this.updateHitboxes();
-            opp.updateHitboxes();
-        } catch (e) {
-            console.error('Error updating hitboxes in checkHit:', e);
-            return null;
-        }
-        
-        // Get current animation (from AnimationController or fallback)
-        const currAnim = this.animationController?.getCurrentAnimation() || this.currAct;
-
-        let attackSpheres = null;
-        if (this.atkGroup === 'hands') {
-            attackSpheres = this.attackSpheres.hands || [];
-        } else if (this.atkGroup === 'legs') {
-            attackSpheres = this.attackSpheres.legs || [];
-        } else if (this.atkType === 'light' || this.atkType === 'heavy') {
-            // Fallback for legacy attack types
-            attackSpheres = this.atkType === 'light' ? (this.attackSpheres.hands || []) : (this.attackSpheres.legs || []);
-        }
-
-        if (!attackSpheres || attackSpheres.length === 0) return null;
-
-        const activeIndices = (Array.isArray(this.activeAttackIndices) && this.activeAttackIndices.length > 0)
-            ? this.activeAttackIndices
-            : attackSpheres.map((_, i) => i);
-
-        const canHitHead = opp.state !== 'CROUCH' && opp.state !== 'CROUCH_EXITING';
-        const canHitTorso = !(opp.state === 'JUMP' && opp.jumpInvulnerabilityTimer > 0);
-
-        let hit = false;
-
-        for (const i of activeIndices) {
-            const attackSphere = attackSpheres[i];
-
-            if (!attackSphere ||
-                attackSphere.center.x === Infinity ||
-                attackSphere.center.y === Infinity ||
-                attackSphere.center.z === Infinity) {
-                continue;
-            }
-
-            const headHit = canHitHead && this.sphereIntersectsSphere(attackSphere, opp.hurtSpheres.head);
-            const torsoHit = canHitTorso && this.sphereIntersectsSphere(attackSphere, opp.hurtSpheres.torso);
-
-            if (headHit || torsoHit) {
-                hit = true;
-                break;
-            }
-        }
-
-        if (!hit) return null;
-
-        const fwd = new THREE.Vector3(0, 0, 1).applyQuaternion(this.mesh.quaternion);
-        const dir = new THREE.Vector3().subVectors(opp.mesh.position, this.mesh.position).normalize();
-        const dot = fwd.dot(dir);
-
-        if (dot <= CONFIG.combat.hitAngle) return null;
-
-        this.hitRegistered = true;
-        const combatStats = this.getCombatStats(this.atkType);
-        const damage = combatStats?.dmg ?? 0;
-        const impactPos = opp.mesh.position.clone();
-        impactPos.y += opp.collisionHeight * 0.5;
-        
-        // Apply damage and get pushback amount
-        const damageResult = opp.takeDamage(damage, this.atkType, this);
-        const pushbackAmount = damageResult.pushbackAmount || 0;
-
-        // Apply forward movement for attacker to maintain combo range
-        if (pushbackAmount > 0 && opp.mesh) {
-            // Calculate forward direction (toward target)
-            const forwardDirection = new THREE.Vector3().subVectors(opp.mesh.position, this.mesh.position);
-            forwardDirection.y = 0; // Keep movement horizontal
-            if (forwardDirection.lengthSq() > 0) {
-                forwardDirection.normalize();
-                
-                // Get forward movement ratio from config based on attack type
-                const isHeavy = this.isHeavyAttack(this.atkType);
-                const basePushAmount = isHeavy 
-                    ? CONFIG.combat.movement.pushback.heavy 
-                    : CONFIG.combat.movement.pushback.light;
-                const baseForwardAmount = isHeavy 
-                    ? CONFIG.combat.movement.forward.heavy 
-                    : CONFIG.combat.movement.forward.light;
-                
-                // Calculate forward amount: scale base forward amount by the ratio of actual pushback to base pushback
-                // This ensures forward movement is proportional to the actual pushback applied (after friction)
-                const pushbackRatio = basePushAmount > 0 ? pushbackAmount / basePushAmount : 0;
-                const forwardAmount = baseForwardAmount * pushbackRatio;
-                
-                // Apply forward movement
-                this.applyForwardMovement(forwardAmount, forwardDirection, opp);
-            }
-        }
-
-        // Gain stamina when landing a successful hit - more stamina for heavier hits
-        const staminaGain = this.isHeavyAttack(this.atkType) ? 15 : 8; // Heavy hits give more stamina
-        this.st = Math.min(this.maxSt, this.st + staminaGain);
-        this.updateUI();
-
-        return {
-            attacker: this,
-            target: opp,
-            atkType: this.atkType,
-            damage,
-            position: impactPos
-        };
+        // Delegate to combat system
+        return this.combatSystem.checkHit(this, opp);
     }
 
     sphereIntersectsSphere(sphere1, sphere2) {
@@ -1070,67 +863,11 @@ export class Fighter {
     }
 
     takeDamage(amt, type, attacker) {
-        this.hp = Math.max(0, this.hp - amt);
-        // Gain stamina when getting hit - more stamina for heavier hits
-        const staminaGainOnHit = this.isHeavyAttack(type) ? 20 : 12;
-        this.st = Math.min(this.maxSt, this.st + staminaGainOnHit);
-        
-        // Pushback when hit - push away from attacker with friction
-        let pushbackAmount = 0;
-        if (attacker && attacker.mesh) {
-            const pushDirection = new THREE.Vector3().subVectors(this.mesh.position, attacker.mesh.position);
-            pushDirection.y = 0; // Keep pushback horizontal
-            if (pushDirection.lengthSq() > 0) {
-                pushDirection.normalize();
-                
-                // Get pushback amount from config based on attack type
-                const isHeavy = this.isHeavyAttack(type);
-                const basePushAmount = isHeavy 
-                    ? CONFIG.combat.movement.pushback.heavy 
-                    : CONFIG.combat.movement.pushback.light;
-                
-                // Apply pushback using centralized method
-                pushbackAmount = this.applyPushback(basePushAmount, pushDirection, attacker);
-            }
-        }
-        
-        if (this.hp <= 0) {
-            this.state = 'DEAD';
-            if (this.animationController) {
-                this.animationController.playOneShot('die', 
-                    CONFIG.animation.crossfade.toBase, 
-                    CONFIG.animation.crossfade.toBase,
-                    {
-                        priority: CONFIG.animation.priorities.DEAD,
-                        autoReturn: false,
-                        clamp: true
-                    });
-            } else {
-                this.play('die', this.animationFade);
-            }
-        } else {
-            this.state = 'STUN';
-            this.stunTime = 0.5;
-            if (this.animationController) {
-                this.animationController.playOneShot('hit', 
-                    CONFIG.animation.crossfade.toHit, 
-                    CONFIG.animation.crossfade.toBase,
-                    {
-                        priority: CONFIG.animation.priorities.HIT,
-                        autoReturn: true,
-                        onFinished: () => {
-                            // Will transition to IDLE when stun time expires
-                        }
-                    });
-            } else {
-                this.play('hit', this.animationFade);
-            }
-        }
-        this.flashColor();
-        this.updateUI();
-        
-        // Return both state and pushback amount for combo system
-        return { state: this.state, pushbackAmount };
+        // Delegate to combat system
+        const result = this.combatSystem.takeDamage(this, amt, type, attacker);
+        // Update state for backward compatibility
+        this.state = this.stateManager.getCurrentState();
+        return result;
     }
 
     flashColor() {
@@ -1166,157 +903,47 @@ export class Fighter {
     }
 
     attack(type, isChain = false) {
-        const attackMap = {
-            leftHand: { animations: ['punchL', 'atk1_left', 'atk1'], group: 'hands', indices: [0, 1], limb: 'left' },
-            rightHand: { animations: ['punchR', 'atk1_right', 'atk1'], group: 'hands', indices: [2, 3], limb: 'right' },
-            leftLeg: { animations: ['kickL', 'atk2_left', 'atk2'], group: 'legs', indices: [0, 1], limb: 'left' },
-            rightLeg: { animations: ['kickR', 'atk2_right', 'atk2'], group: 'legs', indices: [2, 3], limb: 'right' },
-            // Legacy/fallback types
-            light: { animations: ['atk1'], group: 'hands', indices: [0, 1, 2, 3], limb: 'any' },
-            heavy: { animations: ['atk2'], group: 'legs', indices: [0, 1, 2, 3], limb: 'any' }
-        };
-
-        const attackInfo = attackMap[type];
-        if (!attackInfo) return;
-
-        // If already attacking and not a chain, queue for combo
-        if (this.state === 'ATTACK' && !isChain) {
-            this.comboQueuedType = type; // buffer for combo
-            this.logInput(`queue:${type}`);
-            return;
+        // Delegate to combat system
+        const result = this.combatSystem.attack(this, type, isChain);
+        // Update state for backward compatibility
+        if (result && !result.queued) {
+            this.state = this.stateManager.getCurrentState();
         }
-
-        // Get animation candidates first to check if we can play
-        const animCandidates = attackInfo.animations || [];
-        const chosenAnim = animCandidates.find(name => this.actions[name]) || animCandidates[0];
-        
-        // Check if animation exists
-        if (!chosenAnim || !this.actions[chosenAnim]) {
-            // Animation not found - can't attack
-            return;
-        }
-        
-        // Note: Removed the same-animation check here - AnimationController.playOneShot()
-        // already handles this check and will return null if the animation is actively running.
-        // This allows retriggering the same animation after it finishes.
-        
-        // Check stamina BEFORE setting state (to prevent double attacks)
-        const combatStats = this.getCombatStats(type);
-        const cost = combatStats?.cost ?? 0;
-        if (this.st < cost) return;
-        
-        // Set state to ATTACK IMMEDIATELY to prevent multiple simultaneous calls
-        // This must happen before any async operations or animation checks
-        this.state = 'ATTACK';
-        
-        // Now deduct stamina (state is already set, so subsequent calls will be queued)
-        this.st -= cost;
-        this.atkType = type;
-        this.atkGroup = attackInfo.group;
-        this.atkLimb = attackInfo.limb;
-        this.activeAttackIndices = attackInfo.indices || [];
-        this.hitRegistered = false;
-        this.comboQueuedType = null;
-        this.comboWindowOpen = false;
-        this.comboCount = isChain ? Math.min(this.comboCount + 1, this.maxCombo) : 1;
-        
-        // Use AnimationController if available
-        if (this.animationController) {
-            const priority = isChain ? CONFIG.animation.priorities.ATK2 : CONFIG.animation.priorities.ATK1;
-            const fadeIn = isChain ? CONFIG.animation.crossfade.withinCombo : CONFIG.animation.crossfade.toAttack;
-            const fadeOut = isChain ? CONFIG.animation.crossfade.withinCombo : CONFIG.animation.crossfade.toBase;
-            
-            // Calculate playback speed - COMPLETE REFACTOR: handle ALL speed logic here
-            const isLeg = chosenAnim.toLowerCase().includes('kick') || chosenAnim.toLowerCase().includes('atk2');
-            
-            // Base speeds: Initial attacks are 3.5x (hands) and 3.0x (legs)
-            let playbackSpeed = isLeg ? 3.0 : 3.5;
-            
-            // Apply combo multiplier if this is a combo attack
-            // Combo attacks are MUCH faster: 60.0x (hands) and 50.0x (legs)
-            if (isChain) {
-                // Direct calculation: combo multiplier makes combos ~17x faster
-                const comboMultiplier = CONFIG.combat.comboSpeedMultiplier || 17.1;
-                playbackSpeed *= comboMultiplier;
-            } else {
-                // For initial attacks only: apply character config as multiplier (if exists)
-                // Check multiple possible animation names that might match
-                const animVariants = [chosenAnim, type, attackInfo.group === 'hands' ? 'atk1' : 'atk2'];
-                for (const animName of animVariants) {
-                    const charSpeed = this.characterConfig?.animationSettings?.playbackSpeed?.[animName];
-                    if (charSpeed !== undefined) {
-                        playbackSpeed *= charSpeed;
-                        break; // Use first match found
-                    }
-                }
-            }
-            
-            this.currAct = this.animationController.playOneShot(chosenAnim, fadeIn, fadeOut, {
-                priority: priority,
-                autoReturn: true,
-                timeScale: playbackSpeed,
-                onFinished: () => {
-                    this.state = 'IDLE';
-                    this.atkGroup = null;
-                    this.atkLimb = null;
-                    this.activeAttackIndices = [];
-                    this.comboCount = 0;
-                    this.currAct = null;
-                }
-            });
-            
-            if (!this.currAct) {
-                // Animation couldn't play - refund stamina and reset state
-                this.st += cost; // Refund the stamina since attack didn't happen
-                this.state = 'IDLE';
-            }
-        } else {
-            // Fallback to old system
-            const fade = isChain ? Math.min(this.animationFade, 0.05) : this.animationFade;
-            this.play(chosenAnim, fade, false, isChain);
-            if (!this.actions[chosenAnim]) {
-                // Animation not found - refund stamina and reset state
-                this.st += cost; // Refund the stamina since attack didn't happen
-                this.state = 'IDLE';
-            }
-        }
-        
-        this.logInput(`atk${isChain ? ' (chain)' : ''}:${type}`);
+        return result;
     }
 
     jump() {
-        if (this.state !== 'IDLE' && this.state !== 'WALK') return;
+        const currentState = this.stateManager.getCurrentState();
+        if (currentState !== 'IDLE' && currentState !== 'WALK') return;
         if (!this.actions['jump']) return; // Animation not loaded
         
         // Check if we can interrupt current animation
-        if (this.animationController && !this.animationController.canInterrupt(CONFIG.animation.priorities.JUMP)) {
+        if (this.animationSystem && !this.animationSystem.canInterrupt(CONFIG.animation.priorities.JUMP)) {
             return; // Can't interrupt
         }
         
+        this.stateManager.transitionTo('JUMP');
         this.state = 'JUMP';
         this.jumpInvulnerabilityTimer = 2.5;
         
-        // Use AnimationController if available
-        if (this.animationController) {
+        // Use AnimationSystem
+        if (this.animationSystem) {
             const jumpDuration = CONFIG.animation.locomotion.jumpDuration || 0.6;
             const jumpCancelWindow = CONFIG.animation.locomotion.jumpCancelWindow || 0.2;
             
-            this.currAct = this.animationController.playOneShot('jump', 
-                CONFIG.animation.crossfade.toJump, 
-                CONFIG.animation.crossfade.toBase, 
-                {
-                    priority: CONFIG.animation.priorities.JUMP,
-                    autoReturn: true,
-                    desiredDuration: jumpDuration,
-                    cancelWindow: jumpCancelWindow,
-                    onFinished: () => {
-                        this.state = 'IDLE';
-                        this.currAct = null;
-                    }
-                });
-        } else {
-            // Fallback to old system
-            this.play('jump', this.animationFade);
+            this.currAct = this.animationSystem.playOneShot('jump', {
+                priority: CONFIG.animation.priorities.JUMP,
+                fadeIn: CONFIG.animation.crossfade.toJump,
+                fadeOut: CONFIG.animation.crossfade.toBase,
+                autoReturn: true,
+                desiredDuration: jumpDuration,
+                cancelWindow: jumpCancelWindow,
+                onFinished: () => {
+                    this.stateManager.transitionTo('IDLE');
+                    this.state = 'IDLE';
+                    this.currAct = null;
+                }
+            });
         }
         
         this.logInput('jump');
@@ -1326,192 +953,70 @@ export class Fighter {
         // TEMPORARILY DISABLED: Crouch feature disabled for both player and AI
         return;
         
+        const currentState = this.stateManager.getCurrentState();
         // State checks - prevent crouching if in invalid states
-        if (this.state === 'ATTACK' || this.state === 'STUN' || this.state === 'DEAD' || this.state === 'WIN') return;
+        if (currentState === 'ATTACK' || currentState === 'STUN' || currentState === 'DEAD' || currentState === 'WIN') return;
         if (!this.actions['crouch']) return; // Animation not loaded
-        if (this.state === 'CROUCH' || this.state === 'CROUCH_EXITING') return; // Already crouched or exiting
-        if (this.state !== 'IDLE' && this.state !== 'WALK') return; // Can only crouch from IDLE or WALK
+        if (currentState === 'CROUCH' || currentState === 'CROUCH_EXITING') return; // Already crouched or exiting
+        if (currentState !== 'IDLE' && currentState !== 'WALK') return; // Can only crouch from IDLE or WALK
         
+        this.stateManager.transitionTo('CROUCH');
         this.state = 'CROUCH';
         
-        // Use AnimationController if available
-        if (this.animationController) {
-            // Simply play the crouch animation - let AnimationController handle all logic
-            // If already playing and clamped, playOneShot will return null, but that's fine
-            // because the state check above prevents this from being called when already crouched
-            this.currAct = this.animationController.playOneShot('crouch', 
-                CONFIG.animation.crossfade.toCrouch, 
-                CONFIG.animation.crossfade.toCrouch, 
-                {
-                    priority: CONFIG.animation.priorities.CROUCH,
-                    autoReturn: false, // Don't auto-return, stay crouched
-                    desiredDuration: this.crouchDuration,
-                    reverse: false,
-                    clamp: true,
-                    loop: false,
-                    onFinished: () => {
-                        // Animation finished - stay clamped at end (handled by AnimationController.update)
-                        // Keep CROUCH state active
-                    }
-                });
-        } else {
-            // Fallback to old system
-            this.play('crouch', this.animationFade, false);
+        // Use AnimationSystem
+        if (this.animationSystem) {
+            this.currAct = this.animationSystem.playOneShot('crouch', {
+                priority: CONFIG.animation.priorities.CROUCH,
+                fadeIn: CONFIG.animation.crossfade.toCrouch,
+                fadeOut: CONFIG.animation.crossfade.toCrouch,
+                autoReturn: false, // Don't auto-return, stay crouched
+                desiredDuration: this.crouchDuration,
+                reverse: false,
+                clamp: true,
+                loop: false,
+                onFinished: () => {
+                    // Animation finished - stay clamped at end
+                }
+            });
         }
         
         this.logInput('crouch');
     }
 
     exitCrouch() {
-        if (this.state !== 'CROUCH') return;
+        const currentState = this.stateManager.getCurrentState();
+        if (currentState !== 'CROUCH') return;
         
+        this.stateManager.transitionTo('CROUCH_EXITING');
         this.state = 'CROUCH_EXITING';
         
-        // Use AnimationController if available
-        if (this.animationController) {
-            this.currAct = this.animationController.playOneShot('crouch', 
-                CONFIG.animation.crossfade.toCrouch, 
-                CONFIG.animation.crossfade.toBase, 
-                {
-                    priority: CONFIG.animation.priorities.CROUCH,
-                    autoReturn: true,
-                    desiredDuration: this.crouchDuration,
-                    reverse: true, // KEY: reverse animation
-                    clamp: false,
-                    loop: false,
-                    onFinished: () => {
-                        this.state = 'IDLE';
-                        this.currAct = null;
-                        // Transition back to base locomotion
-                        if (this.animationController) {
-                            this.animationController.transitionToBase(CONFIG.animation.crossfade.toBase);
-                        }
+        // Use AnimationSystem
+        if (this.animationSystem) {
+            this.currAct = this.animationSystem.playOneShot('crouch', {
+                priority: CONFIG.animation.priorities.CROUCH,
+                fadeIn: CONFIG.animation.crossfade.toCrouch,
+                fadeOut: CONFIG.animation.crossfade.toBase,
+                autoReturn: true,
+                desiredDuration: this.crouchDuration,
+                reverse: true, // KEY: reverse animation
+                clamp: false,
+                loop: false,
+                onFinished: () => {
+                    this.stateManager.transitionTo('IDLE');
+                    this.state = 'IDLE';
+                    this.currAct = null;
+                    // Transition back to base locomotion
+                    if (this.animationSystem) {
+                        this.animationSystem.transitionToBase(CONFIG.animation.crossfade.toBase);
                     }
-                });
-        } else {
-            // Fallback to old system
-            this.play('crouch', this.animationFade, true);
+                }
+            });
         }
-    }
-
-    getAttackInput(keys) {
-        if (keys['ArrowLeft']) return 'leftHand';
-        if (keys['ArrowUp']) return 'rightHand';
-        if (keys['ArrowDown']) return 'leftLeg';
-        if (keys['ArrowRight']) return 'rightLeg';
-        return null;
-    }
-
-    keyDown(keys, key) {
-        if (!keys) return false;
-        return !!(keys[key] || keys[key.toLowerCase?.()] || keys[key.toUpperCase?.()]);
     }
 
     logInput(label) {
         this.inputLog.push({ label, t: performance.now() });
         if (this.inputLog.length > 8) this.inputLog.shift();
-    }
-
-    updateInput(dt, keys, camera, inputHandler = null) {
-        // TEMPORARILY DISABLED: Crouch feature disabled for both player and AI
-        // If already crouched or exiting, handle that first - but only to exit, not to enter
-        if (this.state === 'CROUCH') {
-            // If somehow in crouch state, exit it immediately
-            this.exitCrouch();
-            return; // Don't process other inputs while exiting crouch
-        }
-        
-        if (this.state === 'CROUCH_EXITING') {
-            // While exiting crouch, can't move or attack
-            this.desiredVelocity.set(0, 0, 0);
-            return; // Don't process other inputs while exiting
-        }
-        
-        // TEMPORARILY DISABLED: Crouch input handling disabled
-        // Check for crouch - use edge detection to enter (only trigger once per key press)
-        // But use keyDown check to stay crouched (key is held)
-        // if (inputHandler && (this.state === 'IDLE' || this.state === 'WALK')) {
-        //     // Only enter crouch on initial key press (edge-triggered)
-        //     if (inputHandler.consumeKey('s')) {
-        //         this.crouch();
-        //         return; // Don't process other inputs while entering crouch
-        //     }
-        // }
-
-        // Attack controls (only when not crouched) - use edge-triggered input
-        if (inputHandler) {
-            // Use edge-triggered input detection (consumes key press, prevents multiple triggers)
-            if (inputHandler.consumeKey('ArrowLeft')) {
-                this.attack('leftHand');
-                this.desiredVelocity.set(0, 0, 0);
-                return;
-            }
-            if (inputHandler.consumeKey('ArrowUp')) {
-                this.attack('rightHand');
-                this.desiredVelocity.set(0, 0, 0);
-                return;
-            }
-            if (inputHandler.consumeKey('ArrowDown')) {
-                this.attack('leftLeg');
-                this.desiredVelocity.set(0, 0, 0);
-                return;
-            }
-            if (inputHandler.consumeKey('ArrowRight')) {
-                this.attack('rightLeg');
-                this.desiredVelocity.set(0, 0, 0);
-                return;
-            }
-        } else {
-            // Fallback to old system if inputHandler not available
-            const attackInput = this.getAttackInput(keys);
-            if (attackInput) { 
-                this.attack(attackInput); 
-                // Clear movement when attacking
-                this.desiredVelocity.set(0, 0, 0);
-                return; 
-            }
-        }
-        
-        // W = Jump
-        if (this.keyDown(keys, 'w')) { 
-            this.jump(); 
-            // Clear movement when jumping
-            this.desiredVelocity.set(0, 0, 0);
-            return; 
-        }
-
-        // Get character's forward direction (toward opponent)
-        const charForward = new THREE.Vector3(0, 0, 1);
-        charForward.applyQuaternion(this.mesh.quaternion);
-        charForward.y = 0;
-        charForward.normalize();
-
-        // A/D = Move back and forth (toward/away from opponent)
-        // D = move forward (toward opponent), A = move backward (away from opponent)
-        let mov = new THREE.Vector3();
-        let isBackward = false;
-        
-        if (this.keyDown(keys, 'd')) {
-            mov.addScaledVector(charForward, 1); // Move toward opponent
-            isBackward = false;
-        }
-        if (this.keyDown(keys, 'a')) {
-            mov.addScaledVector(charForward, -1); // Move away from opponent
-            isBackward = true;
-        }
-
-        // Set desired velocity for MotionController
-        if (mov.lengthSq() > 0) {
-            mov.normalize();
-            this.desiredVelocity.copy(mov).multiplyScalar(this.moveSpeed);
-            this.moveDirection = isBackward ? -1 : 1;
-        } else {
-            this.desiredVelocity.set(0, 0, 0);
-            this.moveDirection = 0;
-        }
-        
-        // MotionController will handle smooth movement in update()
-        // Locomotion blending will be updated in update() based on actual velocity
     }
 
     updateAI(dt, opp, collisionSystem) {
@@ -1522,14 +1027,14 @@ export class Fighter {
             // Fallback to simple AI if controller not available
             console.warn('AI Controller not available, using fallback AI');
             const dist = this.mesh.position.distanceTo(opp.mesh.position);
-            if (dist < 2.5 && this.state === 'IDLE' && Math.random() < 0.3) {
+            const currentState = this.stateManager?.getCurrentState() || this.state;
+            if (dist < 2.5 && currentState === 'IDLE' && Math.random() < 0.3) {
                 const attacks = ['leftHand', 'rightHand', 'leftLeg', 'rightLeg'];
                 const attackType = attacks[Math.floor(Math.random() * attacks.length)];
-                this.attack(attackType);
+                this.combatSystem.attack(this, attackType);
             } else if (dist > 2.5) {
                 const dir = new THREE.Vector3().subVectors(opp.mesh.position, this.mesh.position).normalize();
-                this.mesh.position.addScaledVector(dir, this.moveSpeed * dt);
-                this.play('walk', this.animationFade);
+                this.desiredVelocity.copy(dir).multiplyScalar(this.moveSpeed);
             }
             if (this.mesh.position.length() > 20) this.mesh.position.setLength(20);
         }
@@ -1542,5 +1047,105 @@ export class Fighter {
         const stEl = document.getElementById(this.id + '-st');
         if (hpEl) hpEl.style.width = `${hpPercent}%`;
         if (stEl) stEl.style.width = `${stPercent}%`;
+    }
+
+    /**
+     * Dispose of all THREE.js resources and clean up fighter
+     * Call this before removing fighters to prevent memory leaks and duplicates
+     */
+    dispose() {
+        // Stop animation mixer and dispose actions
+        if (this.mixer) {
+            // Stop all actions
+            Object.values(this.actions).forEach(action => {
+                if (action) {
+                    action.stop();
+                    action.reset();
+                }
+            });
+            // Clear actions
+            this.actions = {};
+            // Uncache root from mixer
+            if (this.mixer.uncacheRoot) {
+                this.mixer.uncacheRoot(this.mesh);
+            }
+        }
+
+        // Remove mesh from scene and dispose materials/geometries
+        if (this.mesh) {
+            // Remove from parent scene
+            if (this.mesh.parent) {
+                this.mesh.parent.remove(this.mesh);
+            }
+            
+            // Dispose all materials and geometries in the mesh tree
+            this.mesh.traverse((child) => {
+                if (child.isMesh) {
+                    // Dispose geometry
+                    if (child.geometry) {
+                        child.geometry.dispose();
+                    }
+                    // Dispose material(s)
+                    if (child.material) {
+                        if (Array.isArray(child.material)) {
+                            child.material.forEach(mat => {
+                                if (mat.map) mat.map.dispose();
+                                mat.dispose();
+                            });
+                        } else {
+                            if (child.material.map) child.material.map.dispose();
+                            child.material.dispose();
+                        }
+                    }
+                }
+            });
+        }
+
+        // Remove and dispose hitbox visualization
+        if (this.hitboxVisualization) {
+            if (this.hitboxVisualization.parent) {
+                this.hitboxVisualization.parent.remove(this.hitboxVisualization);
+            }
+            this.hitboxVisualization.traverse((child) => {
+                if (child.isMesh) {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) child.material.dispose();
+                }
+            });
+            this.hitboxVisualization = null;
+        }
+
+        // Remove and dispose collision box visualization
+        if (this.collisionBoxVisualization) {
+            if (this.collisionBoxVisualization.parent) {
+                this.collisionBoxVisualization.parent.remove(this.collisionBoxVisualization);
+            }
+            this.collisionBoxVisualization.traverse((child) => {
+                if (child.isMesh) {
+                    if (child.geometry) child.geometry.dispose();
+                    if (child.material) child.material.dispose();
+                }
+            });
+            this.collisionBoxVisualization = null;
+        }
+
+        // Clear subsystems (they don't need explicit disposal, just null references)
+        this.animationSystem = null;
+        this.animationController = null;
+        this.movementSystem = null;
+        this.inputController = null;
+        this.combatSystem = null;
+        this.stateManager = null;
+        this.motionController = null;
+        this.aiController = null;
+
+        // Clear all references
+        this.mesh = null;
+        this.mixer = null;
+        this.actions = {};
+        this.origMats = null;
+        this.bones = {};
+        this.hurtSpheres = null;
+        this.attackSpheres = null;
     }
 }

@@ -28,6 +28,8 @@ export class PauseMenu {
     setupButtons() {
         const resumeBtn = document.getElementById('btn-resume');
         const restartBtn = document.getElementById('btn-restart-pause');
+        const debugOptionsBtn = document.getElementById('btn-debug-options');
+        const backFromDebugBtn = document.getElementById('btn-back-from-debug');
         const mainMenuBtn = document.getElementById('btn-main-menu');
 
         if (resumeBtn) {
@@ -45,6 +47,22 @@ export class PauseMenu {
                 e.stopPropagation();
                 this.hide();
                 if (this.onRestart) this.onRestart();
+            });
+        }
+
+        if (debugOptionsBtn) {
+            debugOptionsBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.showDebugView();
+            });
+        }
+
+        if (backFromDebugBtn) {
+            backFromDebugBtn.addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                this.showMainView();
             });
         }
 
@@ -80,6 +98,8 @@ export class PauseMenu {
         if (pauseMenu) {
             pauseMenu.style.display = 'flex';
             this.visible = true;
+            // Always show main view when opening pause menu
+            this.showMainView();
         }
     }
 
@@ -89,6 +109,20 @@ export class PauseMenu {
             pauseMenu.style.display = 'none';
             this.visible = false;
         }
+    }
+
+    showMainView() {
+        const mainView = document.getElementById('pause-main-view');
+        const debugView = document.getElementById('pause-debug-view');
+        if (mainView) mainView.style.display = 'block';
+        if (debugView) debugView.style.display = 'none';
+    }
+
+    showDebugView() {
+        const mainView = document.getElementById('pause-main-view');
+        const debugView = document.getElementById('pause-debug-view');
+        if (mainView) mainView.style.display = 'none';
+        if (debugView) debugView.style.display = 'block';
     }
 
     getDebugOptions() {

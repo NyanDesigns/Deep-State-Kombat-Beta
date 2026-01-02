@@ -179,63 +179,75 @@
         <!-- Pause Menu -->
         <div id="pause-menu">
             <div class="pause-panel">
-                <h2>PAUSED</h2>
+                <!-- Main Menu View -->
+                <div id="pause-main-view" class="pause-view">
+                    <h2>PAUSED</h2>
 
-                <div class="pause-buttons">
-                    <button id="btn-resume" class="clickable">Resume Game</button>
-                    <button id="btn-restart-pause" class="clickable">Restart Fight</button>
-                    <button id="btn-main-menu" class="clickable">Main Menu</button>
+                    <div class="pause-buttons">
+                        <button id="btn-resume" class="clickable">Resume Game</button>
+                        <button id="btn-restart-pause" class="clickable">Restart Fight</button>
+                        <button id="btn-debug-options" class="clickable">Debug Options</button>
+                        <button id="btn-main-menu" class="clickable">Main Menu</button>
+                    </div>
                 </div>
 
-                <div class="debug-options">
-                    <h3>Debug Options</h3>
+                <!-- Debug Options View -->
+                <div id="pause-debug-view" class="pause-view" style="display: none;">
+                    <h2>DEBUG OPTIONS</h2>
 
-                    <label class="debug-option">
-                        <span>Show Hitboxes</span>
-                        <div class="toggle-switch">
-                            <input type="checkbox" id="debug-hitboxes">
-                            <span class="toggle-slider"></span>
-                        </div>
-                    </label>
+                    <div class="debug-options">
+                        <label class="debug-option">
+                            <span>Show Hitboxes</span>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="debug-hitboxes">
+                                <span class="toggle-slider"></span>
+                            </div>
+                        </label>
 
-                    <label class="debug-option">
-                        <span>Show Collision Box</span>
-                        <div class="toggle-switch">
-                            <input type="checkbox" id="debug-collision-box">
-                            <span class="toggle-slider"></span>
-                        </div>
-                    </label>
+                        <label class="debug-option">
+                            <span>Show Collision Box</span>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="debug-collision-box">
+                                <span class="toggle-slider"></span>
+                            </div>
+                        </label>
 
-                    <label class="debug-option">
-                        <span>Show Parameters</span>
-                        <div class="toggle-switch">
-                            <input type="checkbox" id="debug-params">
-                            <span class="toggle-slider"></span>
-                        </div>
-                    </label>
+                        <label class="debug-option">
+                            <span>Show Parameters</span>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="debug-params">
+                                <span class="toggle-slider"></span>
+                            </div>
+                        </label>
 
-                    <label class="debug-option">
-                        <span>Show Attack Ranges</span>
-                        <div class="toggle-switch">
-                            <input type="checkbox" id="debug-range">
-                            <span class="toggle-slider"></span>
-                        </div>
-                    </label>
+                        <label class="debug-option">
+                            <span>Show Attack Ranges</span>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="debug-range">
+                                <span class="toggle-slider"></span>
+                            </div>
+                        </label>
 
-                    <label class="debug-option">
-                          <span>Show Frame Data</span>
-                          <div class="toggle-switch">
-                            <input type="checkbox" id="debug-timer">
-                            <span class="toggle-slider"></span>
-                          </div>
-                    </label>
-                    <label class="debug-option">
-                          <span>Show Inputs/Combo</span>
-                          <div class="toggle-switch">
-                            <input type="checkbox" id="debug-inputs">
-                            <span class="toggle-slider"></span>
-                          </div>
-                    </label>
+                        <label class="debug-option">
+                            <span>Show Frame Data</span>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="debug-timer">
+                                <span class="toggle-slider"></span>
+                            </div>
+                        </label>
+
+                        <label class="debug-option">
+                            <span>Show Inputs/Combo</span>
+                            <div class="toggle-switch">
+                                <input type="checkbox" id="debug-inputs">
+                                <span class="toggle-slider"></span>
+                            </div>
+                        </label>
+                    </div>
+
+                    <div class="pause-buttons" style="margin-top: 30px;">
+                        <button id="btn-back-from-debug" class="clickable">Back</button>
+                    </div>
                 </div>
             </div>
         </div>

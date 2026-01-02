@@ -164,42 +164,66 @@
         inset 0 0 20px rgba(255, 255, 255, 0.3);
 }
 
-/* Main Menu button - Orange/Red (third button) */
+/* Debug Options button - Cyan/Blue (third button) */
 .pause-buttons button:nth-child(3) {
+    background: linear-gradient(135deg, #0099cc 0%, #00ccff 100%);
+    border-color: #00ccff;
+    box-shadow: 
+        0 0 20px rgba(0, 204, 255, 0.5),
+        inset 0 0 15px rgba(255, 255, 255, 0.2);
+}
+
+.pause-buttons button:nth-child(3):hover {
+    background: linear-gradient(135deg, #00ccff 0%, #33ddff 100%);
+    box-shadow: 
+        0 0 40px rgba(0, 204, 255, 0.8),
+        inset 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+/* Main Menu button - Orange/Red (fourth button) */
+.pause-buttons button:nth-child(4) {
     background: linear-gradient(135deg, #ff6600 0%, #ff8833 100%);
     border-color: #ff6600;
-    margin-bottom: 20px;
+    margin-bottom: 0;
     box-shadow: 
         0 0 20px rgba(255, 102, 0, 0.5),
         inset 0 0 15px rgba(255, 255, 255, 0.2);
 }
 
-.pause-buttons button:nth-child(3):hover {
+.pause-buttons button:nth-child(4):hover {
     background: linear-gradient(135deg, #ff8833 0%, #ffaa66 100%);
     box-shadow: 
         0 0 40px rgba(255, 102, 0, 0.8),
         inset 0 0 20px rgba(255, 255, 255, 0.3);
 }
 
-.debug-options {
-    border-top: 2px solid rgba(255, 165, 0, 0.3);
-    padding-top: 25px;
-    margin-top: 10px;
+/* Back button - Purple/Magenta */
+#btn-back-from-debug {
+    background: linear-gradient(135deg, #9933cc 0%, #cc66ff 100%);
+    border-color: #cc66ff;
+    box-shadow: 
+        0 0 20px rgba(204, 102, 255, 0.5),
+        inset 0 0 15px rgba(255, 255, 255, 0.2);
 }
 
-.debug-options h3 {
-    color: #00ccff;
-    margin: 0 0 20px 0;
-    font-size: 1.5em;
-    font-weight: 900;
-    font-family: 'Arial Black', 'Franklin Gothic Bold', 'Impact', sans-serif;
-    text-transform: uppercase;
-    letter-spacing: 4px;
-    text-shadow: 
-        2px 2px 0px #000,
-        3px 3px 0px #000,
-        0 0 15px rgba(0, 204, 255, 0.5);
+#btn-back-from-debug:hover {
+    background: linear-gradient(135deg, #cc66ff 0%, #dd99ff 100%);
+    box-shadow: 
+        0 0 40px rgba(204, 102, 255, 0.8),
+        inset 0 0 20px rgba(255, 255, 255, 0.3);
 }
+
+/* View containers */
+.pause-view {
+    width: 100%;
+}
+
+/* Debug Options View */
+.debug-options {
+    margin-top: 20px;
+    margin-bottom: 20px;
+}
+
 
 .debug-option {
     display: flex;

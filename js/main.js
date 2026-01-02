@@ -594,7 +594,25 @@ async function startCountdown() {
     });
 }
 
+/**
+ * Clean up all existing fighters and dispose of their resources
+ * This prevents duplicate characters, hitboxes, and memory leaks
+ */
+function cleanupFighters() {
+    if (fighters && fighters.length > 0) {
+        fighters.forEach(fighter => {
+            if (fighter && typeof fighter.dispose === 'function') {
+                fighter.dispose();
+            }
+        });
+        fighters = [];
+    }
+}
+
 async function spawnFighters() {
+    // Clean up any existing fighters before spawning new ones
+    cleanupFighters();
+
     const selectedCharacters = characterSelector.getSelectedCharacters();
     const p1Config = selectedCharacters.p1;
     const p2Config = selectedCharacters.p2;
@@ -635,7 +653,17 @@ function restartFight() {
         uiManager.endScreenKeyboardHandler = null;
     }
 
-    if (fighters.length !== 2) return;
+    // Safety check: ensure we have exactly 2 valid fighters
+    if (fighters.length !== 2) {
+        console.warn('restartFight: Invalid fighter count, cannot restart');
+        return;
+    }
+
+    // Verify fighters are still valid (not disposed)
+    if (!fighters[0] || !fighters[0].mesh || !fighters[1] || !fighters[1].mesh) {
+        console.warn('restartFight: Fighters are invalid or disposed, cannot restart');
+        return;
+    }
 
     if (inputHandler) {
         inputHandler.clearKeys();
@@ -647,12 +675,19 @@ function restartFight() {
     fighters.forEach(f => {
         f.hp = f.maxHp;
         f.st = f.maxSt;
-        f.state = 'IDLE';
+        // Update state through StateManager
+        if (f.stateManager) {
+            f.stateManager.setState('IDLE');
+        }
+        f.state = 'IDLE'; // Keep for backward compatibility
         // Resume animation mixer if it was frozen
         if (f.mixer) {
             f.mixer.timeScale = 1;
         }
-        f.play('idle', f.animationFade);
+        // Start with idle animation via animation system
+        if (f.animationSystem) {
+            f.animationSystem.updateLocomotionBlend(0, 1);
+        }
         f.updateUI();
     });
 
@@ -669,24 +704,8 @@ function loadNewModels() {
 
     gameState.setState('SETUP');
 
-    if (fighters.length === 2) {
-        sceneManager.scene.remove(fighters[0].mesh);
-        sceneManager.scene.remove(fighters[1].mesh);
-        // Remove visualizations
-        if (fighters[0].hitboxVisualization) {
-            sceneManager.scene.remove(fighters[0].hitboxVisualization);
-        }
-        if (fighters[0].collisionBoxVisualization) {
-            sceneManager.scene.remove(fighters[0].collisionBoxVisualization);
-        }
-        if (fighters[1].hitboxVisualization) {
-            sceneManager.scene.remove(fighters[1].hitboxVisualization);
-        }
-        if (fighters[1].collisionBoxVisualization) {
-            sceneManager.scene.remove(fighters[1].collisionBoxVisualization);
-        }
-    }
-    fighters = [];
+    // Use cleanupFighters() to properly dispose of all resources
+    cleanupFighters();
 
     // Hide HUD first
     uiManager.hideHUD();

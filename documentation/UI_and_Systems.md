@@ -1090,3 +1090,4 @@ This document provides comprehensive documentation for all UI components, animat
 - **Effect Intensity**: Adjust CRTShader uniform values
 - **Render Target**: Inspect `renderSystem.lowResRenderTarget` for pixelation
 
+

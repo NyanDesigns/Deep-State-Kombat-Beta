@@ -632,3 +632,4 @@ All core systems depend on `CONFIG` object:
 - **System Access**: All systems accessible via bootstrap return value
 - **Render Target Inspection**: `renderSystem.lowResRenderTarget` for pixelation debugging
 
+

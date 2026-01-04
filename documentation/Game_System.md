@@ -631,3 +631,4 @@ Fighter uses internal state machine with these states:
 - **Input Logging**: `fighter.inputLog` for combo debugging
 - **AI State**: `fighter.aiController.currentState` for AI behavior
 
+
